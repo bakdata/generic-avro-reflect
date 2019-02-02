@@ -1,1 +1,3 @@
 rootProject.name = 'generic-avro-reflect'
+
+include 'generic-avro-reflect'

@@ -5,7 +5,7 @@ plugins {
     id("net.researchgate.release") version "2.6.0"
     // eat your own dog food - apply the plugins to this plugin project
     id("com.bakdata.sonar") version "1.0.0"
-    id("com.bakdata.sonatype") version "1.0.0"
+//    id("com.bakdata.sonatype") version "1.0.0"
     id("io.franzbecker.gradle-lombok") version "1.14"
 }
 
@@ -22,15 +22,15 @@ allprojects {
     }
 }
 
-configure<com.bakdata.gradle.SonatypeSettings> {
-    developers {
-        // TODO: adjust
-        developer {
-            name.set("Arvid Heise")
-            id.set("AHeise")
-        }
-    }
-}
+//configure<com.bakdata.gradle.SonatypeSettings> {
+//    developers {
+//        // TODO: adjust
+//        developer {
+//            name.set("Arvid Heise")
+//            id.set("AHeise")
+//        }
+//    }
+//}
 
 subprojects {
     apply(plugin = "java-library")
