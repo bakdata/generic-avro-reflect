@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -266,8 +267,7 @@ class Reflect2DataTest {
         Schema expected = SchemaBuilder.builder()
                 .array().items(expectedValueClass);
 
-        // TODO: Why does this expect ArrayList and not just List? Further up, this is okay.
-        expected.addProp(SpecificData.CLASS_PROP, List.class.getName());
+        expected.addProp(SpecificData.CLASS_PROP, ArrayList.class.getName());
         assertEquals(expected, schema);
     }
 
@@ -310,6 +310,21 @@ class Reflect2DataTest {
 //        Schema expected = SchemaBuilder.builder()
 //                .record("NestedGenericMapListValueClass").namespace(NestedGenericValueMapClass.class.getPackageName()).fields()
 //                .name("genericValueMap").type().map().values()
+    }
+
+    @Test
+    void getNestedListSchemaFromInstance() {
+        List<GenericClass<Integer>> genericList = new LinkedList<>(List.of(new GenericClass<>(10)));
+        final Schema schema = Reflect2Data.get().getSchema(genericList);
+
+        Schema expectedListItems = SchemaBuilder.builder()
+                .record("GenericClass").namespace(GenericClass.class.getPackageName()).fields()
+                .name("genericField").type().intType().noDefault()
+                .endRecord();
+        Schema expected = SchemaBuilder.builder().array().items(expectedListItems);
+        expected.addProp(SpecificData.CLASS_PROP, LinkedList.class.getName());
+
+        assertEquals(expected, schema);
     }
 
 }

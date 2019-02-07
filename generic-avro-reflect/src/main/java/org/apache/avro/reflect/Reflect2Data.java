@@ -13,6 +13,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -85,47 +86,54 @@ public class Reflect2Data extends ReflectData {
     }
 
     private Function<Object, Type> getEvidenceFunction(TypeVariable<? extends Class<?>> tp, Object instance, Class<?> clazz) {
-        final List<FieldAccessor> accessors = getEvidencePath(tp, instance, clazz);
+        final List<TypedValueAccessor> accessors = getEvidencePath(tp, instance, clazz);
         if (accessors.isEmpty()) {
             log.warn("Dangling type variable " + tp.getName() + " in class " + clazz);
             return o -> Object.class;
         }
 
         // lower bound of the field
-        var defaultType = accessors.get(accessors.size() - 1).getField().getType();
-        return new Function<Object, Type>() {
-            @Override
-            @SneakyThrows
-            public Type apply(Object o) {
-                for (FieldAccessor accessor : accessors) {
-                    o = accessor.get(o);
-                    if (o == null) {
-                        return defaultType;
-                    }
+        final Type defaultType = accessors.get(accessors.size() - 1).getDefaultType();
+
+        return (Object o) -> {
+            for (TypedValueAccessor accessor : accessors) {
+                o = accessor.getTypedValue(o);
+                if (o == null) {
+                    return defaultType;
                 }
-                if (o.getClass().getTypeParameters().length > 0) {
-                    // Found type T that has more types itself (e.g. T = ArrayList<E>)
-                    return new ParameterizedTypeImpl(o.getClass(), getBoundParameters(o, o.getClass()));
-                }
-                return o.getClass();
             }
+            if (o.getClass().getTypeParameters().length > 0) {
+                // Found type T that has more types itself (e.g. T = ArrayList<E>)
+                return new ParameterizedTypeImpl(o.getClass(), getBoundParameters(o, o.getClass()));
+            }
+            return o.getClass();
         };
     }
 
-    private List<FieldAccessor> getEvidencePath(TypeVariable<? extends Class<?>> tp, Object instance, Type type) {
+    private List<TypedValueAccessor> getEvidencePath(TypeVariable<? extends Class<?>> tp, Object instance, Type type) {
         final TypeToken<?> tt = TypeToken.of(type);
         if (tt.getRawType().getTypeParameters().length == 0) {
             return List.of();
         }
-        return Arrays.stream(tt.getRawType().getDeclaredFields()).flatMap(new Function<Field, Stream<? extends List<FieldAccessor>>>() {
+
+        if (instance instanceof List) {
+            TypedValueAccessor typedValueAccessor = new TypedValueAccessor((inst) -> {
+                List<?> genericListInstance = (List) inst;
+                return genericListInstance.isEmpty() ? null : genericListInstance.get(0);
+            });
+
+            return List.of(typedValueAccessor);
+        }
+
+        return Arrays.stream(tt.getRawType().getDeclaredFields()).flatMap(new Function<Field, Stream<? extends List<TypedValueAccessor>>>() {
             @Override
             @SneakyThrows
-            public Stream<? extends List<FieldAccessor>> apply(Field field) {
+            public Stream<? extends List<TypedValueAccessor>> apply(Field field) {
                 if ((field.getModifiers() & Modifier.STATIC) == 0 && !field.getType().equals(field.getGenericType())) {
                     final FieldAccessor accessor = ReflectionUtil.getFieldAccess().getAccessor(field);
                     final TypeToken<?> fieldToken = tt.resolveType(field.getGenericType());
                     if (fieldToken.getType().equals(tp)) {
-                        return Stream.of(List.of(accessor));
+                        return Stream.of(List.of(new TypedValueAccessor(accessor)));
                     } else {
                         final Object fieldValue = accessor.get(instance);
                         if (fieldValue != null) {
@@ -133,7 +141,7 @@ public class Reflect2Data extends ReflectData {
                             var path = new LinkedList<>(Reflect2Data.this.getEvidencePath(tp, fieldValue,
                                     subtype.getType()));
                             if (!path.isEmpty()) {
-                                path.addFirst(accessor);
+                                path.addFirst(new TypedValueAccessor(accessor));
                                 return Stream.of(path);
                             }
                         } else {
