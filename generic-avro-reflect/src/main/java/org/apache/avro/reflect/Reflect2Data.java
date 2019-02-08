@@ -63,13 +63,10 @@ public class Reflect2Data extends ReflectData {
 
     protected Type[] getBoundParameters(Object instance, Class<?> clazz) {
         final TypeVariable<? extends Class<?>>[] typeParameters = clazz.getTypeParameters();
-//        if (typeParameters.length > 0) {
-            final List<Function<Object, Type>> functions = evidenceFunctions.computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
-                    .map(tp -> getEvidenceFunction(tp, instance, c))
-                    .collect(Collectors.toList()));
-            return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
-//        }
-//        return new Type[];
+        final List<Function<Object, Type>> functions = evidenceFunctions.computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
+                .map(tp -> getEvidenceFunction(tp, instance, c))
+                .collect(Collectors.toList()));
+        return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
     }
 
     public Schema getSchema(Object instance) {
@@ -92,7 +89,7 @@ public class Reflect2Data extends ReflectData {
             return o -> Object.class;
         }
 
-        // lower bound of the field
+        // Lower bound of the field
         final Type defaultType = accessors.get(accessors.size() - 1).getDefaultType();
 
         return (Object o) -> {
@@ -157,6 +154,7 @@ public class Reflect2Data extends ReflectData {
 
     @Override
     protected Schema createSchema(Type type, Map<String, Schema> names) {
+        // Check the containing classes for type information of `type` T
         if (type instanceof TypeVariable) {
             for (TypeToken<?> parentType : this.parameterizedTypeStack) {
                 type = parentType.resolveType(type).getType();
@@ -167,7 +165,11 @@ public class Reflect2Data extends ReflectData {
             if (type instanceof TypeVariable) {
                 throw new IllegalArgumentException("Unbound generic type variable " + type + "; please use TypeToken instead");
             }
-        } else if (type instanceof ParameterizedType) {
+        }
+
+        // It is possible for this and the above to be true in the case when `type` is resolved to a ParameterizedType
+        // in the loop above.
+        if (type instanceof ParameterizedType) {
             this.parameterizedTypeStack.push(TypeToken.of(type));
             final Schema schema = super.createSchema(type, names);
             this.parameterizedTypeStack.pop();

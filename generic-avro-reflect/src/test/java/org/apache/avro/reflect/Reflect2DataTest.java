@@ -305,11 +305,27 @@ class Reflect2DataTest {
                         new GenericClass<>(3.0f));
 
         final Schema schema = Reflect2Data.get().getSchema(instance);
-        assertNotNull(schema);
 
-//        Schema expected = SchemaBuilder.builder()
-//                .record("NestedGenericMapListValueClass").namespace(NestedGenericValueMapClass.class.getPackageName()).fields()
-//                .name("genericValueMap").type().map().values()
+        Schema expectedGenericClass = SchemaBuilder.builder()
+                .record("GenericClass").namespace(GenericClass.class.getPackageName()).fields()
+                .name("genericField").type().floatType().noDefault()
+                .endRecord();
+
+        Schema expectedInnerList = SchemaBuilder.builder()
+                .array().items(expectedGenericClass);
+        expectedInnerList.addProp(SpecificData.CLASS_PROP, List.class.getName());
+
+        Schema expectedInnerMap = SchemaBuilder.builder()
+                .map().values(expectedInnerList);
+
+        Schema expected = SchemaBuilder.builder()
+                .record("NestedGenericMapListValueClass").namespace(NestedGenericMapListValueClass.class.getPackageName()).fields()
+                .name("genericValueMap").type().map().values(expectedInnerMap).noDefault()
+                .name("x").type(expectedGenericClass).noDefault()
+                .name("y").type(expectedGenericClass).noDefault()
+                .endRecord();
+
+        assertEquals(expected, schema);
     }
 
     @Test
