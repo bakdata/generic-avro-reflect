@@ -1,35 +1,35 @@
 package org.apache.avro.reflect;
 
-import lombok.SneakyThrows;
-
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
+import lombok.SneakyThrows;
 
-public class TypedValueAccessor {
-    private CheckedFunction<Object, Object> getTypedValueFn;
-    private Supplier<Type> getDefaultTypeFn;
+@FunctionalInterface
+interface CheckedFunction<T, R> {
+    R apply(T t) throws Exception;
+}
 
-    TypedValueAccessor(FieldAccessor fieldAccessor) {
-        getTypedValueFn = fieldAccessor::get;
-        getDefaultTypeFn = () -> fieldAccessor.getField().getType();
+class TypedValueAccessor {
+    private final CheckedFunction<Object, Object> getTypedValueFn;
+    private final Supplier<Type> getDefaultTypeFn;
+
+    TypedValueAccessor(final FieldAccessor fieldAccessor) {
+        this.getTypedValueFn = fieldAccessor::get;
+        this.getDefaultTypeFn = () -> fieldAccessor.getField().getType();
     }
 
-    TypedValueAccessor(CheckedFunction<Object, Object> nonFieldAccessor) {
-        getTypedValueFn = nonFieldAccessor;
-        getDefaultTypeFn = () -> Object.class;
+    TypedValueAccessor(final CheckedFunction<Object, Object> nonFieldAccessor) {
+        this.getTypedValueFn = nonFieldAccessor;
+        this.getDefaultTypeFn = () -> Object.class;
     }
 
     Type getDefaultType() {
-        return getDefaultTypeFn.get();
+        return this.getDefaultTypeFn.get();
     }
 
     @SneakyThrows
-    Object getTypedValue(Object instance) {
-        return getTypedValueFn.apply(instance);
+    Object getTypedValue(final Object instance) {
+        return this.getTypedValueFn.apply(instance);
     }
-}
-
-interface CheckedFunction<T, R> {
-    R apply(T t) throws Exception;
 }
 

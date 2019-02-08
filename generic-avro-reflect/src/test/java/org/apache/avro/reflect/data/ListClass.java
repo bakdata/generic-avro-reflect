@@ -1,11 +1,9 @@
 package org.apache.avro.reflect.data;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.avro.reflect.Union;
-
-import java.util.List;
 
 @Data
 @NoArgsConstructor
