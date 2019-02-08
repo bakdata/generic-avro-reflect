@@ -277,10 +277,9 @@ class Reflect2DataTest {
     void getGenericSubClassSchemaOfSubClassFromInstance() {
         final GenericBaseClass<String> baseClass = new GenericSubClass<>("base", "sub");
         final Schema schema = Reflect2Data.get().getSchema(baseClass);
-        // TODO: This returns GenericSubClass, so no base class schema
+
         final Schema expected = SchemaBuilder.builder()
             .record("GenericSubClass").namespace(GenericSubClass.class.getPackageName()).fields()
-            // TODO: Why is this order correct?
             .name("subVariable").type().stringType().noDefault()
             .name("baseVariable").type().stringType().noDefault()
             .endRecord();
@@ -293,7 +292,8 @@ class Reflect2DataTest {
         final Schema schema = Reflect2Data.get().getSchema(baseClass);
 
         final Schema expected = SchemaBuilder.builder()
-            .record("GenericBaseClass").namespace(GenericBaseClass.class.getPackageName()).fields()
+            .record("GenericSubClass").namespace(GenericSubClass.class.getPackageName()).fields()
+            .name("subVariable").type().stringType().noDefault()
             .name("baseVariable").type().stringType().noDefault()
             .endRecord();
         assertEquals(expected, schema);

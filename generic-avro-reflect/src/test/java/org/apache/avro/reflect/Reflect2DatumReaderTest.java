@@ -33,31 +33,31 @@ import org.apache.avro.reflect.data.ValueClass;
 import org.junit.jupiter.api.Test;
 
 class Reflect2DatumReaderTest {
-    static <T> void verify(final T nestedValueClass, final DatumWriter<T> datumWriter, final DatumReader<T> datumReader)
+    static <T> void verify(final T instance, final DatumWriter<T> datumWriter, final DatumReader<T> datumReader)
         throws IOException {
-        verify(nestedValueClass, datumWriter, datumReader, false);
+        verify(instance, datumWriter, datumReader, false);
     }
 
-    static <T> void verify(final T nestedValueClass, final DatumWriter<T> datumWriter, final DatumReader<T> datumReader,
+    static <T> void verify(final T instance, final DatumWriter<T> datumWriter, final DatumReader<T> datumReader,
         final boolean reuse) throws IOException {
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             final BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(baos, null);
-            datumWriter.write(nestedValueClass, encoder);
-            datumWriter.write(nestedValueClass, encoder);
+            datumWriter.write(instance, encoder);
+            datumWriter.write(instance, encoder);
             encoder.flush();
 
             final byte[] encoded = baos.toByteArray();
 
             final BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(encoded, null);
             final T o1 = datumReader.read(null, decoder);
-            assertEquals(nestedValueClass, o1);
+            assertEquals(instance, o1);
 
             if (reuse) {
                 final Object o2 = datumReader.read(o1, decoder);
-                assertThat(o2).isEqualTo(nestedValueClass).isSameAs(o1);
+                assertThat(o2).isEqualTo(instance).isSameAs(o1);
             } else {
                 final Object o2 = datumReader.read(null, decoder);
-                assertEquals(nestedValueClass, o2);
+                assertEquals(instance, o2);
             }
         }
     }
