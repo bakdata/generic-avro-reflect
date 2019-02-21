@@ -29,7 +29,38 @@ import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
 /**
- * Not thread-safe!
+ * (maybe ReflectiveSchema) Represents the main user-facing class to create an Avro schema from any Java object. The
+ * goal of this class is to convert any class, which can contain generics, nested classes, maps, lists, and so on, to a
+ * valid Avro Schema. It does this by extending existing Avro reflection tools to infer generic types from the actual
+ * data at runtime. To convert {@code MyClass<T>} to a valid schema, it would try to find the field containing T and
+ * resolve the type of the value of that field. As this is done recursively, it can resolve nested generic classes.
+ *
+ * Given this example class:
+ * <pre>
+ * {@code
+ *   class MyClass<T> {
+ *     T myValue;
+ *
+ *     public MyClass(T value) {
+ *       myValue = value;
+ *     }
+ *   }
+ * }
+ * </pre>
+ *
+ * the usage would look like this:
+ * <pre>
+ * {@code
+ *     MyClass<String> myObject = new MyClass<>("foo");
+ *     Schema mySchema = Reflect2Data.get().getSchema(myObject);
+ * }
+ * </pre>
+ *
+ * Here, the schema would be for the class {@code MyClass} with a {@code String} field {@code myValue}. When
+ * deserializing back to a Java object, this will automatically result in a {@code MyClass<String>}.
+ *
+ * Note: This class is not thread-safe. But we recommend to use the same instance so that you benefit from the
+ * instance's cache.
  */
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -39,10 +70,44 @@ public class Reflect2Data extends ReflectData {
     private final Objenesis objenesis = new ObjenesisStd(false);
     private final Map<Class<?>, List<Function<Object, Type>>> evidenceFunctions = new HashMap<>();
 
+    /**
+     * Get a new instance.
+     */
     public static Reflect2Data get() {
         return new Reflect2Data();
     }
 
+    /**
+     * Creates the Avro schema for any given object `instance`. Note here, that the generated schemas are not
+     * necessarily compatible. As the type resolution depends on the explicit value of said type at runtime, if it is
+     * not present or the value is set to {@code null}, we cannot infer the type. A class containing a field of {@code
+     * List<T>} that is empty, cannot be resolved correctly and will result in {@code List<Object>}, whereas the same
+     * class with a non-empty list will successfully result in e.g. {@code List<String>}.
+     */
+    public Schema getSchema(final Object instance) {
+        if (instance instanceof GenericRecord) {
+            return super.getSchema(instance.getClass());
+        }
+
+        final Class<?> clazz = instance.getClass();
+        final Type[] boundParameters = this.getBoundParameters(instance, clazz);
+        if (boundParameters.length > 0) {
+            return super.getSchema(new ParameterizedTypeImpl(clazz, boundParameters));
+        }
+        return super.getSchema(clazz);
+    }
+
+    // =======================================================
+    // Non-public methods
+    // =======================================================
+    private Type[] getBoundParameters(final Object instance, final Class<?> clazz) {
+        final TypeVariable<? extends Class<?>>[] typeParameters = clazz.getTypeParameters();
+        final List<Function<Object, Type>> functions = this.evidenceFunctions
+            .computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
+                .map(tp -> this.getEvidenceFunction(tp, instance, c))
+                .collect(Collectors.toList()));
+        return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
+    }
 
     @Override
     public Object newRecord(final Object old, final Schema schema) {
@@ -57,34 +122,12 @@ public class Reflect2Data extends ReflectData {
         return (c.isInstance(old) ? old : this.objenesis.newInstance(c));
     }
 
-    private Type[] getBoundParameters(final Object instance, final Class<?> clazz) {
-        final TypeVariable<? extends Class<?>>[] typeParameters = clazz.getTypeParameters();
-        final List<Function<Object, Type>> functions = this.evidenceFunctions
-            .computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
-                .map(tp -> this.getEvidenceFunction(tp, instance, c))
-                .collect(Collectors.toList()));
-        return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
-    }
-
-    public Schema getSchema(final Object instance) {
-        if (instance instanceof GenericRecord) {
-            return super.getSchema(instance.getClass());
-        }
-
-        final Class<?> clazz = instance.getClass();
-        final Type[] boundParameters = this.getBoundParameters(instance, clazz);
-        if (boundParameters.length > 0) {
-            return super.getSchema(new ParameterizedTypeImpl(clazz, boundParameters));
-        }
-        return super.getSchema(clazz);
-    }
-
     private Function<Object, Type> getEvidenceFunction(final TypeVariable<? extends Class<?>> tp, final Object instance,
         final Class<?> clazz) {
         final List<TypedValueAccessor> accessors = this.getEvidencePath(tp, instance, clazz);
         if (accessors.isEmpty()) {
             log.warn("Dangling type variable {} in class {}", tp.getName(), clazz);
-            return (Object) -> Object.class;
+            return o -> Object.class;
         }
 
         // Lower bound of the field
@@ -117,8 +160,9 @@ public class Reflect2Data extends ReflectData {
             return List.of();
         }
 
+        // Special case for lists, as they don't explicitly store the values in a type T but cast on access.
         if (instance instanceof List) {
-            final TypedValueAccessor typedValueAccessor = new TypedValueAccessor((inst) -> {
+            final TypedValueAccessor typedValueAccessor = new TypedValueAccessor((Object inst) -> {
                 final List<?> genericListInstance = (List<?>) inst;
                 return genericListInstance.isEmpty() ? null : genericListInstance.get(0);
             });
@@ -127,8 +171,8 @@ public class Reflect2Data extends ReflectData {
         }
 
         return Arrays.stream(tt.getRawType().getDeclaredFields())
-            .flatMap((field) -> Stream.of(this.buildEvidencePath(field, tp, instance, tt)))
-            .filter((list) -> !list.isEmpty())  // If there is no path, we can discard it
+            .flatMap(field -> Stream.of(this.buildEvidencePath(field, tp, instance, tt)))
+            .filter(list -> !list.isEmpty())  // If there is no path, we can discard it
             .min(Comparator.comparing(List::size))
             .orElse(List.of());
     }
