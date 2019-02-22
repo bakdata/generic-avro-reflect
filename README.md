@@ -33,7 +33,7 @@ compile group: 'com.bakdata', name: 'generic-avro-reflect', version: '1.0.0'
 
 For other build tools or versions, refer to the [latest version in MvnRepository](https://mvnrepository.com/artifact/com.bakdata.generic-avro-reflect/generic-avro-reflect/latest).
 
-### Using it
+## Using it
 
 Here is a quick example that shows you how to use Generic Avro Reflect.
 
@@ -106,7 +106,7 @@ You can find many more tests in [this repository's test code](https://github.com
 
 #### Known Limitations
 
-As the type resolution ins done at runtime and depends on actual values being present, there is a limitation regarding `null` values.
+As the type resolution is done at runtime and depends on actual values being present, there is a limitation regarding `null` values.
 If a value is set to `null`, Reflect2Data cannot resolve its type and will default to `Object`.
 
 ```java
