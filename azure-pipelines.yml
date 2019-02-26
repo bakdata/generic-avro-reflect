@@ -1,3 +1,9 @@
+pr: none
+
+variables:
+- group: sonarqube
+- group: sign
+
 jobs:
 - job: Build
   pool:
@@ -22,6 +28,7 @@ jobs:
       publishJUnitResults: true
       testResultsFiles: '**/TEST-*.xml'
       tasks: 'build'
+      options: '--info --stacktrace'
   - task: Gradle@2
     displayName: Assess code quality
     inputs: 
@@ -30,7 +37,7 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'sonarqube'
-      options: -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=bakdata --info --stacktrace
+      options: '-Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=bakdata --info --stacktrace'
     env:
       SONAR_TOKEN: $(sonar_token)
   - task: DownloadSecureFile@1
@@ -44,6 +51,7 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'sign'
+      options: '--info --stacktrace'
     env:
       SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
       SIGNING_PASSWORD: $(signing.password)
@@ -64,6 +72,7 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'publishToNexus'
+      options: '--info --stacktrace'
   - task: Gradle@2
     displayName: Upload tagged release
     condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/')
@@ -73,6 +82,7 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'publishToNexus closeAndReleaseRepository'
+      options: '--info --stacktrace'
 
 - job: NewRelease
   pool:
@@ -100,3 +110,4 @@ jobs:
       jdkArchitectureOption: 'x64'
       tasks: 'release'
       options: '-Prelease.useAutomaticVersion=true -Prelease.releaseVersion=${version} --stacktrace --info'
+      
