@@ -3,6 +3,8 @@ pr: none
 variables:
 - group: sonarqube
 - group: sign
+- name: release
+  value: ''
 
 jobs:
 - job: Build
