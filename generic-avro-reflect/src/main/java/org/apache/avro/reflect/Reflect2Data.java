@@ -84,7 +84,7 @@ public class Reflect2Data extends ReflectData {
         final List<TypedValueAccessor> accessors = this.getEvidencePath(tp, instance, clazz);
         if (accessors.isEmpty()) {
             log.warn("Dangling type variable {} in class {}", tp.getName(), clazz);
-            return (Object) -> Object.class;
+            return (Object o) -> Object.class;
         }
 
         // Lower bound of the field
@@ -118,7 +118,7 @@ public class Reflect2Data extends ReflectData {
         }
 
         if (instance instanceof List) {
-            final TypedValueAccessor typedValueAccessor = new TypedValueAccessor((inst) -> {
+            final TypedValueAccessor typedValueAccessor = new TypedValueAccessor((Object inst) -> {
                 final List<?> genericListInstance = (List<?>) inst;
                 return genericListInstance.isEmpty() ? null : genericListInstance.get(0);
             });
@@ -127,8 +127,8 @@ public class Reflect2Data extends ReflectData {
         }
 
         return Arrays.stream(tt.getRawType().getDeclaredFields())
-            .flatMap((field) -> Stream.of(this.buildEvidencePath(field, tp, instance, tt)))
-            .filter((list) -> !list.isEmpty())  // If there is no path, we can discard it
+            .flatMap( field -> Stream.of(this.buildEvidencePath(field, tp, instance, tt)))
+            .filter(list -> !list.isEmpty())  // If there is no path, we can discard it
             .min(Comparator.comparing(List::size))
             .orElse(List.of());
     }
