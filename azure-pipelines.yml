@@ -59,15 +59,14 @@ jobs:
       SIGNING_PASSWORD: $(signing.password)
       SIGNING_KEY_ID: $(signing.keyId)
 
-- job: Upload
+- job: UploadSnapshot
   pool:
     vmImage: 'Ubuntu-16.04'
   dependsOn: Build
-  condition: and(succeeded(), eq(variables['release'], ''))
+  condition: and(succeeded(), eq(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
   - task: Gradle@2
     displayName: Upload snapshot
-    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
     inputs: 
       gradleWrapperFile: 'gradlew'
       javaHomeOption: 'JDKVersion'
@@ -75,9 +74,15 @@ jobs:
       jdkArchitectureOption: 'x64'
       tasks: 'publishToNexus'
       options: '--info --stacktrace'
+
+- job: UploadRelease
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  dependsOn: Build
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+  steps:
   - task: Gradle@2
     displayName: Upload tagged release
-    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/')
     inputs: 
       gradleWrapperFile: 'gradlew'
       javaHomeOption: 'JDKVersion'
@@ -85,13 +90,28 @@ jobs:
       jdkArchitectureOption: 'x64'
       tasks: 'publishToNexus closeAndReleaseRepository'
       options: '--info --stacktrace'
+  - task: Gradle@2
+    displayName: Create release changelog
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'generateChangelog'
+      options: '-Pchangelog.releaseVersion=$(tagName) -Pchangelog.sinceTag=$(tagName) --stacktrace --info'
+  - task: GitHubRelease@0
+    inputs:
+      releaseNotesFile: 'CHANGELOG.md'
+      assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
 
 - job: NewRelease
   pool:
     vmImage: 'Ubuntu-16.04'
   dependsOn: Build
-  condition: and(succeeded(), ne(variables['release'], ''))
+  condition: and(succeeded(), ne(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
+  - checkout: self
+    persistCredentials: true
   - task: Gradle@2
     displayName: Release new version
     inputs: 
