@@ -135,7 +135,6 @@ jobs:
     persistCredentials: true
   # Resolve bugfix|minor|major|<version> to actual version
   - bash: |
-      exit 1
       version=$(grep "version=" gradle.properties | cut -d'=' -f2)
       if [[ "$(release.version)" == "bugfix" ]]; then
           version=${version%-*}
@@ -161,13 +160,18 @@ jobs:
       tasks: 'generateChangelog'
       options: '-Pchangelog.releaseVersion=$(version) --stacktrace --info'
   - script: |
+      # set bot as author
       git config user.email "31185348+bakdata-bot@users.noreply.github.com"
       git config user.name "bakdata-bot"
+      # check if we are really on HEAD of master
       git fetch 
       if [[ `git rev-list HEAD...origin/master --count` > 0 ]]; then exit 1; fi
+      # add commit and push to master
       git add CHANGELOG.md
       git commit -m "Changelog for version $(version)"
       git push
+  # Sets the release version; creates tag; and sets new SNAPSHOT version (total: 2 commits + 1 tag)
+  # Tag triggers actual deployment
   - task: Gradle@2
     displayName: Release new version
     inputs: 
