@@ -58,8 +58,8 @@ jobs:
 - job: UploadSnapshot
   pool:
     vmImage: 'Ubuntu-16.04'
-#  dependsOn: Build
-#  condition: and(succeeded(), eq(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
   - task: DownloadSecureFile@1
     inputs:
@@ -84,7 +84,7 @@ jobs:
 - job: UploadRelease
   pool:
     vmImage: 'Ubuntu-16.04'
-  dependsOn: Build
+  #dependsOn: Build
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
   - task: DownloadSecureFile@1
@@ -125,7 +125,7 @@ jobs:
 - job: TagVersionForNewRelease
   pool:
     vmImage: 'Ubuntu-16.04'
-  dependsOn: Build
+  #dependsOn: Build
   # when manually run with overridden release.version
   condition: and(succeeded(), ne(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
