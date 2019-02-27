@@ -62,7 +62,7 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   dependsOn: Build
-  condition: and(succeeded(), eq(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+#  condition: and(succeeded(), eq(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
   - task: DownloadSecureFile@1
     inputs:
@@ -115,20 +115,38 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'generateChangelog'
-      options: '-Pchangelog.releaseVersion=$(tagName) -Pchangelog.sinceTag=$(tagName) --stacktrace --info'
+      options: '-Pchangelog.releaseVersion=$(Build.SourceBranch) -Pchangelog.sinceTag=$(Build.SourceBranch) --stacktrace --info'
   - task: GitHubRelease@0
     inputs:
       releaseNotesFile: 'CHANGELOG.md'
+      name: 'Release $(Build.SourceBranch)'
       assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
 
 - job: TagVersionForNewRelease
   pool:
     vmImage: 'Ubuntu-16.04'
   dependsOn: Build
-  condition: and(succeeded(), ne(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  # when manually run with overridden release.version
+  condition: and(succeeded(), ne(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
-  - checkout: self
-    persistCredentials: true
+  # - checkout: self
+  #   persistCredentials: true
+  # Resolve bugfix|minor|major|<version> to actual version
+  - bash: |
+      version=$(grep "version=" gradle.properties | cut -d'=' -f2)
+      if [[ "$(release.version)" == "bugfix" ]]; then
+          version=${version%-*}
+      elif [[ "$(release.version)" == "minor" ]]; then
+          version=${version%%.*}.$((`echo ${version} | cut -d'.' -f 2`+1)).0
+      elif [[ "$(release.version)" == "major" ]]; then
+          version=$((${version%%.*}+1)).0.0
+      elif [[ "$(release.version)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          version=${release.version}
+      else
+          echo "Got unsupported version $(release.version), use bugfix|minor|major|<version>" >&2
+          exit 1
+      fi
+      echo "##vso[task.setvariable variable=version]${version}"
   - task: Gradle@2
     displayName: Release new version
     inputs: 
@@ -137,8 +155,8 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'generateChangelog'
-      options: '-Pchangelog.releaseVersion=${version} --stacktrace --info'
-  - script: git add CHANGELOG.md && git commit -m "Changelog for version ${version}" && git push
+      options: '-Pchangelog.releaseVersion=$(version) --stacktrace --info'
+  - script: git add CHANGELOG.md && git commit -m "Changelog for version $(version)" && git push
   - task: Gradle@2
     displayName: Release new version
     condition: and(succeeded(), ne(variables['release'], ''))
@@ -148,5 +166,5 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'release'
-      options: '-Prelease.useAutomaticVersion=true -Prelease.releaseVersion=${version} --stacktrace --info'
+      options: '-Prelease.useAutomaticVersion=true -Prelease.releaseVersion=$(version) --stacktrace --info'
       
