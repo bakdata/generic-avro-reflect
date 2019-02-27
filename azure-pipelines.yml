@@ -87,6 +87,21 @@ jobs:
   #dependsOn: Build
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
+  - task: Gradle@2
+    displayName: Create release changelog
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
+      tasks: 'generateChangelog'
+      options: '-Pchangelog.releaseVersion=$(Build.SourceBranch) -Pchangelog.sinceTag=$(Build.SourceBranch) --stacktrace --info'
+  - task: GitHubRelease@0
+    inputs:
+      releaseNotesFile: 'CHANGELOG.md'
+      name: 'Release $(Build.SourceBranch)'
+      assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
   - task: DownloadSecureFile@1
     inputs:
       secureFile: secring.gpg
@@ -106,21 +121,6 @@ jobs:
       SIGNING_KEY_ID: $(signing.keyId)
       OSSRH_USERNAME: $(ossrh.username)
       OSSRH_PASSWORD: $(ossrh.password)
-  - task: Gradle@2
-    displayName: Create release changelog
-    inputs: 
-      gradleWrapperFile: 'gradlew'
-      javaHomeOption: 'JDKVersion'
-      jdkVersionOption: '1.11'
-      jdkArchitectureOption: 'x64'
-      publishJUnitResults: false
-      tasks: 'generateChangelog'
-      options: '-Pchangelog.releaseVersion=$(Build.SourceBranch) -Pchangelog.sinceTag=$(Build.SourceBranch) --stacktrace --info'
-  - task: GitHubRelease@0
-    inputs:
-      releaseNotesFile: 'CHANGELOG.md'
-      name: 'Release $(Build.SourceBranch)'
-      assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
 
 - job: TagVersionForNewRelease
   pool:
