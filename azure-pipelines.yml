@@ -64,6 +64,9 @@ jobs:
   dependsOn: Build
   condition: and(succeeded(), eq(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
+  - task: DownloadSecureFile@1
+    inputs:
+      secureFile: secring.gpg
   - task: Gradle@2
     displayName: Upload snapshot
     inputs: 
@@ -71,7 +74,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
-      tasks: 'publishToNexus'
+      tasks: 'publishToNexus -x test'
       options: '--info --stacktrace'
     env:
       SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
@@ -86,6 +89,9 @@ jobs:
   dependsOn: Build
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
+  - task: DownloadSecureFile@1
+    inputs:
+      secureFile: secring.gpg
   - task: Gradle@2
     displayName: Upload tagged release
     inputs: 
@@ -93,7 +99,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
-      tasks: 'publishToNexus closeAndReleaseRepository'
+      tasks: 'publishToNexus closeAndReleaseRepository -x test'
       options: '--info --stacktrace'
     env:
       SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
@@ -115,7 +121,7 @@ jobs:
       releaseNotesFile: 'CHANGELOG.md'
       assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
 
-- job: NewRelease
+- job: TagVersionForNewRelease
   pool:
     vmImage: 'Ubuntu-16.04'
   dependsOn: Build
