@@ -135,6 +135,7 @@ jobs:
     persistCredentials: true
   # Resolve bugfix|minor|major|<version> to actual version
   - bash: |
+      exit 1
       version=$(grep "version=" gradle.properties | cut -d'=' -f2)
       if [[ "$(release.version)" == "bugfix" ]]; then
           version=${version%-*}
@@ -162,9 +163,11 @@ jobs:
   - script: |
       git config user.email "31185348+bakdata-bot@users.noreply.github.com"
       git config user.name "bakdata-bot"
+      git fetch 
+      if [[ `git rev-list HEAD...origin/master --count` > 0 ]]; then exit 1; fi
       git add CHANGELOG.md
       git commit -m "Changelog for version $(version)"
-      git push origin HEAD:master
+      git push
   - task: Gradle@2
     displayName: Release new version
     inputs: 
