@@ -61,7 +61,7 @@ jobs:
 - job: UploadSnapshot
   pool:
     vmImage: 'Ubuntu-16.04'
-  dependsOn: Build
+#  dependsOn: Build
 #  condition: and(succeeded(), eq(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
   - task: DownloadSecureFile@1
