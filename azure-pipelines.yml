@@ -73,6 +73,12 @@ jobs:
       jdkArchitectureOption: 'x64'
       tasks: 'publishToNexus'
       options: '--info --stacktrace'
+    env:
+      SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
+      SIGNING_PASSWORD: $(signing.password)
+      SIGNING_KEY_ID: $(signing.keyId)
+      OSSRH_USERNAME: $(osshr.username)
+      OSSRH_PASSWORD: $(osshr.password)
 
 - job: UploadRelease
   pool:
@@ -89,6 +95,12 @@ jobs:
       jdkArchitectureOption: 'x64'
       tasks: 'publishToNexus closeAndReleaseRepository'
       options: '--info --stacktrace'
+    env:
+      SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
+      SIGNING_PASSWORD: $(signing.password)
+      SIGNING_KEY_ID: $(signing.keyId)
+      OSSRH_USERNAME: $(osshr.username)
+      OSSRH_PASSWORD: $(osshr.password)
   - task: Gradle@2
     displayName: Create release changelog
     inputs: 
