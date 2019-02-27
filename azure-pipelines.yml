@@ -17,6 +17,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
       tasks: 'jar'
       options: '--info --stacktrace'
   - task: Gradle@2
@@ -26,8 +27,6 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
-      publishJUnitResults: true
-      testResultsFiles: '**/TEST-*.xml'
       tasks: 'build'
       options: '--info --stacktrace'
   - task: Gradle@2
@@ -74,6 +73,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
       tasks: 'publishToNexus -x test'
       options: '--info --stacktrace'
     env:
@@ -99,6 +99,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
       tasks: 'publishToNexus closeAndReleaseRepository -x test'
       options: '--info --stacktrace'
     env:
@@ -114,6 +115,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
       tasks: 'generateChangelog'
       options: '-Pchangelog.releaseVersion=$(Build.SourceBranch) -Pchangelog.sinceTag=$(Build.SourceBranch) --stacktrace --info'
   - task: GitHubRelease@0
@@ -154,6 +156,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
       tasks: 'generateChangelog'
       options: '-Pchangelog.releaseVersion=$(version) --stacktrace --info'
   - script: git add CHANGELOG.md && git commit -m "Changelog for version $(version)" && git push
@@ -165,6 +168,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
       tasks: 'release'
       options: '-Prelease.useAutomaticVersion=true -Prelease.releaseVersion=$(version) --stacktrace --info'
       
