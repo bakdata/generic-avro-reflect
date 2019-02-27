@@ -165,7 +165,6 @@ jobs:
       git push origin HEAD:master
   - task: Gradle@2
     displayName: Release new version
-    condition: and(succeeded(), ne(variables['release'], ''))
     inputs: 
       gradleWrapperFile: 'gradlew'
       javaHomeOption: 'JDKVersion'
