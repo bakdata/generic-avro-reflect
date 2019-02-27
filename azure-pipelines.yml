@@ -2,8 +2,6 @@ variables:
 - group: sonarqube
 - group: sign
 - group: ossrh
-- name: release
-  value: ''
 
 jobs:
 - job: Build
