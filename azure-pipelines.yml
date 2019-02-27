@@ -1,23 +1,135 @@
-# Gradle
-# Build your Java project and run tests with Gradle using a Gradle wrapper script.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+pr: none
 
-trigger:
-- master
+variables:
+- group: sonarqube
+- group: sign
+- name: release
+  value: ''
 
-pool:
-  vmImage: 'Ubuntu-16.04'
+jobs:
+- job: Build
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  steps:
+  - task: Gradle@2
+    displayName: Compile
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'jar'
+      options: '--info --stacktrace'
+  - task: Gradle@2
+    displayName: Run tests
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      publishJUnitResults: true
+      testResultsFiles: '**/TEST-*.xml'
+      tasks: 'build'
+      options: '--info --stacktrace'
+  - task: Gradle@2
+    displayName: Assess code quality
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'sonarqube'
+      options: '-Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=bakdata --info --stacktrace'
+    env:
+      SONAR_TOKEN: $(sonar_token)
+  - task: DownloadSecureFile@1
+    inputs:
+      secureFile: secring.gpg
+  - task: Gradle@2
+    displayName: Check if everything builds (incl. javadoc) for snapshot/release and signing works
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'sign'
+      options: '--info --stacktrace'
+    env:
+      SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
+      SIGNING_PASSWORD: $(signing.password)
+      SIGNING_KEY_ID: $(signing.keyId)
 
-steps:
-- task: Gradle@2
-  inputs:
-    workingDirectory: ''
-    gradleWrapperFile: 'gradlew'
-    gradleOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.11'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: false
-    testResultsFiles: '**/TEST-*.xml'
-    tasks: 'build'
+- job: UploadSnapshot
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  steps:
+  - task: Gradle@2
+    displayName: Upload snapshot
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'publishToNexus'
+      options: '--info --stacktrace'
+
+- job: UploadRelease
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  dependsOn: Build
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+  steps:
+  - task: Gradle@2
+    displayName: Upload tagged release
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'publishToNexus closeAndReleaseRepository'
+      options: '--info --stacktrace'
+  - task: Gradle@2
+    displayName: Create release changelog
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'generateChangelog'
+      options: '-Pchangelog.releaseVersion=$(tagName) -Pchangelog.sinceTag=$(tagName) --stacktrace --info'
+  - task: GitHubRelease@0
+    inputs:
+      releaseNotesFile: 'CHANGELOG.md'
+      assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
+
+- job: NewRelease
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  dependsOn: Build
+  condition: and(succeeded(), ne(variables['release'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  steps:
+  - checkout: self
+    persistCredentials: true
+  - task: Gradle@2
+    displayName: Release new version
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'generateChangelog'
+      options: '-Pchangelog.releaseVersion=${version} --stacktrace --info'
+  - script: git add CHANGELOG.md && git commit -m "Changelog for version ${version}" && git push
+  - task: Gradle@2
+    displayName: Release new version
+    condition: and(succeeded(), ne(variables['release'], ''))
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      tasks: 'release'
+      options: '-Prelease.useAutomaticVersion=true -Prelease.releaseVersion=${version} --stacktrace --info'
+      
