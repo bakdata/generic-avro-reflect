@@ -80,6 +80,7 @@ jobs:
       SIGNING_KEY_ID: $(signing.keyId)
       OSSRH_USERNAME: $(ossrh.username)
       OSSRH_PASSWORD: $(ossrh.password)
+      CI: true
 
 - job: UploadRelease
   pool:
@@ -121,6 +122,7 @@ jobs:
       SIGNING_KEY_ID: $(signing.keyId)
       OSSRH_USERNAME: $(ossrh.username)
       OSSRH_PASSWORD: $(ossrh.password)
+      CI: true
 
 - job: TagVersionForNewRelease
   pool:
@@ -173,4 +175,5 @@ jobs:
       publishJUnitResults: false
       tasks: 'release'
       options: '-Prelease.useAutomaticVersion=true -Prelease.releaseVersion=$(version) --stacktrace --info'
-      
+    env:
+      CI: true
