@@ -1,6 +1,7 @@
 variables:
 - group: sonarqube
 - group: sign
+- group: osshr
 - name: release
   value: ''
 
