@@ -162,7 +162,7 @@ jobs:
       git config user.name "bakdata-bot"
       git add CHANGELOG.md
       git commit -m "Changelog for version $(version)"
-      git push HEAD origin:master
+      git push origin HEAD:master
   - task: Gradle@2
     displayName: Release new version
     condition: and(succeeded(), ne(variables['release'], ''))
