@@ -74,7 +74,7 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
-      tasks: 'publishToNexus -x test'
+      tasks: 'publishToNexus -x test -Possrh.username=$(osshr.username) -Posshr.password=$(osshr.password)'
       options: '--info --stacktrace'
     env:
       SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
