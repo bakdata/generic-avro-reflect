@@ -1,7 +1,7 @@
 variables:
 - group: sonarqube
 - group: sign
-- group: osshr
+- group: ossrh
 - name: release
   value: ''
 
@@ -74,14 +74,14 @@ jobs:
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
-      tasks: 'publishToNexus -x test -Possrh.username=$(osshr.username) -Posshr.password=$(osshr.password)'
+      tasks: 'publishToNexus -x test'
       options: '--info --stacktrace'
     env:
       SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
       SIGNING_PASSWORD: $(signing.password)
       SIGNING_KEY_ID: $(signing.keyId)
-      OSSRH_USERNAME: $(osshr.username)
-      OSSRH_PASSWORD: $(osshr.password)
+      OSSRH_USERNAME: $(ossrh.username)
+      OSSRH_PASSWORD: $(ossrh.password)
 
 - job: UploadRelease
   pool:
@@ -105,8 +105,8 @@ jobs:
       SIGNING_SECRET_KEY_RING_FILE: $(Agent.TempDirectory)/secring.gpg 
       SIGNING_PASSWORD: $(signing.password)
       SIGNING_KEY_ID: $(signing.keyId)
-      OSSRH_USERNAME: $(osshr.username)
-      OSSRH_PASSWORD: $(osshr.password)
+      OSSRH_USERNAME: $(ossrh.username)
+      OSSRH_PASSWORD: $(ossrh.password)
   - task: Gradle@2
     displayName: Create release changelog
     inputs: 
