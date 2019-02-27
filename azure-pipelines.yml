@@ -166,6 +166,7 @@ jobs:
       # check if we are really on HEAD of master
       git fetch 
       if [[ `git rev-list HEAD...origin/master --count` > 0 ]]; then exit 1; fi
+      git checkout master
       # add commit and push to master
       git add CHANGELOG.md
       git commit -m "Changelog for version $(version)"
