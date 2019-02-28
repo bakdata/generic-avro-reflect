@@ -1,3 +1,13 @@
+trigger:
+  branches:
+    include:
+      - refs/heads/*
+      - refs/tags/*
+pr:
+  branches:
+    include:
+    - master
+    
 variables:
 - group: sonarqube
 - group: sign
