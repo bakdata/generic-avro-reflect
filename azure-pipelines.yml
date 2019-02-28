@@ -102,9 +102,9 @@ jobs:
     inputs:
       gitHubConnection: 'bot'
       repositoryName: 'bakdata/$(Build.Repository.Name)'
-      releaseNotesFile: '$(Agent.BuildDirectory)/CHANGELOG.md'
+      releaseNotesFile: 'CHANGELOG.md'
       name: 'Release $(Build.SourceVersion)'
-      assets: '$(Agent.BuildDirectory)/**/*.jar'
+      assets: '**/*.jar'
       addChangeLog: false
   - task: Gradle@2
     displayName: Create release changelog
