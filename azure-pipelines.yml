@@ -36,6 +36,7 @@ jobs:
       jdkVersionOption: '1.11'
       jdkArchitectureOption: 'x64'
       tasks: 'build'
+      codeCoverageToolOption: jaCoCo
       options: '--info --stacktrace'
   - task: Gradle@2
     displayName: Assess code quality
