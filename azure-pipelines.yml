@@ -101,7 +101,7 @@ jobs:
   - task: GitHubRelease@0
     inputs:
       gitHubConnection: 'bot'
-      repositoryName: 'bakdata/$(Build.Repository.Name)'
+      repositoryName: 'bakdata/generic-avro-reflect'
       releaseNotesFile: 'CHANGELOG.md'
       name: 'Release $(Build.SourceVersion)'
       addChangeLog: false
