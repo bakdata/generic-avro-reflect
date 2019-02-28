@@ -95,27 +95,9 @@ jobs:
 - job: UploadRelease
   pool:
     vmImage: 'Ubuntu-16.04'
-  #dependsOn: Build
+  dependsOn: Build
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
-  - script: echo "$(Build.Repository.Name) $(Build.Repository.Uri)"
-  - task: GitHubRelease@0
-    inputs:
-      gitHubConnection: 'bot'
-      repositoryName: '$(Build.Repository.Name)'
-      releaseNotesFile: 'CHANGELOG.md'
-      name: 'Release $(Build.SourceVersion)'
-      assets: '**/*.jar'
-  - task: Gradle@2
-    displayName: Create release changelog
-    inputs: 
-      gradleWrapperFile: 'gradlew'
-      javaHomeOption: 'JDKVersion'
-      jdkVersionOption: '1.11'
-      jdkArchitectureOption: 'x64'
-      publishJUnitResults: false
-      tasks: 'generateChangelog'
-      options: '-Pchangelog.releaseVersion=$(Build.SourceVersion) -Pchangelog.sinceTag=$(Build.SourceVersion) --stacktrace --info'
   - task: DownloadSecureFile@1
     inputs:
       secureFile: secring.gpg
@@ -136,11 +118,29 @@ jobs:
       OSSRH_USERNAME: $(ossrh.username)
       OSSRH_PASSWORD: $(ossrh.password)
       CI: true
+  - task: Gradle@2
+    displayName: Create release changelog
+    inputs: 
+      gradleWrapperFile: 'gradlew'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.11'
+      jdkArchitectureOption: 'x64'
+      publishJUnitResults: false
+      tasks: 'generateChangelog'
+      options: '-Pchangelog.releaseVersion=$(Build.SourceVersion) -Pchangelog.sinceTag=$(Build.SourceVersion) --stacktrace --info'
+  - task: GitHubRelease@0
+    inputs:
+      gitHubConnection: 'bot'
+      repositoryName: '$(Build.Repository.Name)'
+      releaseNotesFile: 'CHANGELOG.md'
+      title: 'Release $(Build.SourceVersion)'
+      assets: '**/build/libs/*.jar'
+      addChangeLog: false
 
 - job: TagVersionForNewRelease
   pool:
     vmImage: 'Ubuntu-16.04'
-  #dependsOn: Build
+  dependsOn: Build
   # when manually run with overridden release.version
   condition: and(succeeded(), ne(variables['release.version'], ''), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   steps:
