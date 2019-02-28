@@ -1,8 +1,7 @@
-[![Build status](https://travis-ci.org/bakdata/generic-avro-reflect.svg?branch=master)](https://travis-ci.org/bakdata/generic-avro-reflect/) 
-[![Sonarcloud status](https://sonarcloud.io/api/project_badges/measure?project=bakdata-generic-avro-reflect&metric=alert_status)](https://sonarcloud.io/dashboard?id=bakdata-generic-avro-reflect)
-[![Code coverage](https://sonarcloud.io/api/project_badges/measure?project=bakdata-generic-avro-reflect&metric=coverage)](https://sonarcloud.io/dashboard?id=bakdata-generic-avro-reflect)
+[![Build Status](https://dev.azure.com/bakdata/generic-avro-reflect/_apis/build/status/bakdata.generic-avro-reflect?branchName=master)](https://dev.azure.com/bakdata/generic-avro-reflect/_build/latest?definitionId=1&branchName=master)
+[![Sonarcloud status](https://sonarcloud.io/api/project_badges/measure?project=com.bakdata.generic-avro-reflect%3Ageneric-avro-reflect&metric=alert_status)](https://sonarcloud.io/dashboard?id=bakdata-generic-avro-reflect)
+[![Code coverage](https://sonarcloud.io/api/project_badges/measure?project=com.bakdata.generic-avro-reflect%3Ageneric-avro-reflect&metric=coverage)](https://sonarcloud.io/dashboard?id=bakdata-generic-avro-reflect)
 [![Maven](https://img.shields.io/maven-central/v/com.bakdata.generic-avro-reflect/generic-avro-reflect.svg)](https://search.maven.org/search?q=g:com.bakdata.generic-avro-reflect%20AND%20a:generic-avro-reflect&core=gav)
-
 
 Generic Avro Reflect
 ====================
