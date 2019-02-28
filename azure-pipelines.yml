@@ -98,6 +98,15 @@ jobs:
   #dependsOn: Build
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
+  # extract version from refs/tags/(version)
+  - bash: echo "##vso[task.setvariable variable=version]${$(Build.SourceBranch)##*/}"
+  - task: GitHubRelease@0
+    inputs:
+      gitHubConnection: 'bot'
+      repositoryName: 'bakdata/$(Build.Repository.Name)'
+      releaseNotesFile: 'CHANGELOG.md'
+      name: 'Release $(version)'
+      assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
   - task: Gradle@2
     displayName: Create release changelog
     inputs: 
@@ -107,12 +116,7 @@ jobs:
       jdkArchitectureOption: 'x64'
       publishJUnitResults: false
       tasks: 'generateChangelog'
-      options: '-Pchangelog.releaseVersion=$(Build.SourceBranch) -Pchangelog.sinceTag=$(Build.SourceBranch) --stacktrace --info'
-  - task: GitHubRelease@0
-    inputs:
-      releaseNotesFile: 'CHANGELOG.md'
-      name: 'Release $(Build.SourceBranch)'
-      assets: '$(Build.ArtifactStagingDirectory)/**/*.jar'
+      options: '-Pchangelog.releaseVersion=$(version) -Pchangelog.sinceTag=$(version) --stacktrace --info'
   - task: DownloadSecureFile@1
     inputs:
       secureFile: secring.gpg
