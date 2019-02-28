@@ -21,7 +21,7 @@ resources:
       endpoint: bot
 
 jobs:
-- template: azure/build.yml@templates
-- template: azure/create_tag_version.yml@templates
-- template: azure/upload_release.yml@templates
-- template: azure/upload_snapshot.yml@templates
+- template: azure/gradle/build.yml@templates
+- template: azure/gradle/create_tag_version.yml@templates
+- template: azure/gradle/upload_release.yml@templates
+- template: azure/gradle/upload_snapshot.yml@templates
