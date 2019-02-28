@@ -98,13 +98,14 @@ jobs:
   #dependsOn: Build
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
+  - script: echo "$(Build.Repository.Name) $(Build.Repository.Uri)"
   - task: GitHubRelease@0
     inputs:
       gitHubConnection: 'bot'
-      repositoryName: 'bakdata/generic-avro-reflect'
+      repositoryName: '$(Build.Repository.Name)'
       releaseNotesFile: 'CHANGELOG.md'
       name: 'Release $(Build.SourceVersion)'
-      addChangeLog: false
+      assets: '**/*.jar'
   - task: Gradle@2
     displayName: Create release changelog
     inputs: 
