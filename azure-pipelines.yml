@@ -102,7 +102,7 @@ jobs:
     inputs:
       gitHubConnection: 'bot'
       repositoryName: 'bakdata/$(Build.Repository.Name)'
-      releaseNotesFile: 'CHANGELOG.md'
+      releaseNotesFile: '$(Agent.BuildDirectory)/CHANGELOG.md'
       name: 'Release $(Build.SourceVersion)'
       assets: '$(Agent.BuildDirectory)/**/*.jar'
       addChangeLog: false
