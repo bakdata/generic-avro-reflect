@@ -104,7 +104,6 @@ jobs:
       repositoryName: 'bakdata/$(Build.Repository.Name)'
       releaseNotesFile: 'CHANGELOG.md'
       name: 'Release $(Build.SourceVersion)'
-      assets: '**/*.jar'
       addChangeLog: false
   - task: Gradle@2
     displayName: Create release changelog
