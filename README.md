@@ -7,7 +7,7 @@ Generic Avro Reflect
 ====================
 
 
-Generate an Avro scehma from any Java object at runtime.
+Generate an Avro schema from any Java object at runtime.
 
 You can find a [blog post on medium](https://medium.com/bakdata/xxx) with some examples and detailed explanations of how Generic Avro Reflect works.
 

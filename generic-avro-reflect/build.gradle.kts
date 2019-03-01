@@ -1,4 +1,8 @@
-description = "Generates an Avro scehma from any Java object at runtime"
+plugins {
+    `java-library`
+}
+
+description = "Generates an Avro schema from any Java object at runtime"
 
 dependencies {
     api(group = "org.apache.avro", name = "avro", version = "1.8.2")

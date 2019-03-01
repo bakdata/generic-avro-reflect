@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2019 bakdata GmbH
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package org.apache.avro.reflect;
 
 import com.google.common.reflect.TypeToken;
@@ -43,7 +67,6 @@ public class Reflect2Data extends ReflectData {
         return new Reflect2Data();
     }
 
-
     @Override
     public Object newRecord(final Object old, final Schema schema) {
         // SpecificData will try to instantiate the type returned by getClass, but
@@ -54,15 +77,18 @@ public class Reflect2Data extends ReflectData {
         }
 
         final Class<?> c = this.getClass(schema);
+        if (c == null) {
+            return super.newRecord(old, schema);
+        }
         return (c.isInstance(old) ? old : this.objenesis.newInstance(c));
     }
 
     private Type[] getBoundParameters(final Object instance, final Class<?> clazz) {
         final TypeVariable<? extends Class<?>>[] typeParameters = clazz.getTypeParameters();
         final List<Function<Object, Type>> functions = this.evidenceFunctions
-            .computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
-                .map(tp -> this.getEvidenceFunction(tp, instance, c))
-                .collect(Collectors.toList()));
+                .computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
+                        .map(tp -> this.getEvidenceFunction(tp, instance, c))
+                        .collect(Collectors.toList()));
         return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
     }
 
@@ -80,7 +106,7 @@ public class Reflect2Data extends ReflectData {
     }
 
     private Function<Object, Type> getEvidenceFunction(final TypeVariable<? extends Class<?>> tp, final Object instance,
-        final Class<?> clazz) {
+            final Class<?> clazz) {
         final List<TypedValueAccessor> accessors = this.getEvidencePath(tp, instance, clazz);
         if (accessors.isEmpty()) {
             log.warn("Dangling type variable {} in class {}", tp.getName(), clazz);
@@ -104,14 +130,14 @@ public class Reflect2Data extends ReflectData {
             // Found type T that has more types itself (e.g. T = ArrayList<E>)
             final Class<?> intermediateClass = intermediateObject.getClass();
             return new ParameterizedTypeImpl(intermediateClass,
-                this.getBoundParameters(intermediateObject, intermediateClass));
+                    this.getBoundParameters(intermediateObject, intermediateClass));
         }
         return intermediateObject.getClass();
     }
 
 
     private List<TypedValueAccessor> getEvidencePath(final TypeVariable<? extends Class<?>> tp, final Object instance,
-        final Type type) {
+            final Type type) {
         final TypeToken<?> tt = TypeToken.of(type);
         if (tt.getRawType().getTypeParameters().length == 0) {
             return List.of();
@@ -127,15 +153,15 @@ public class Reflect2Data extends ReflectData {
         }
 
         return Arrays.stream(tt.getRawType().getDeclaredFields())
-            .flatMap( field -> Stream.of(this.buildEvidencePath(field, tp, instance, tt)))
-            .filter(list -> !list.isEmpty())  // If there is no path, we can discard it
-            .min(Comparator.comparing(List::size))
-            .orElse(List.of());
+                .flatMap(field -> Stream.of(this.buildEvidencePath(field, tp, instance, tt)))
+                .filter(list -> !list.isEmpty())  // If there is no path, we can discard it
+                .min(Comparator.comparing(List::size))
+                .orElse(List.of());
     }
 
     @SneakyThrows
     private List<TypedValueAccessor> buildEvidencePath(final Field field, final TypeVariable<? extends Class<?>> tp,
-        final Object instance, final TypeToken<?> tt) {
+            final Object instance, final TypeToken<?> tt) {
         // Field is static OR T is not present in field because generic type does not contain T. Can be ignored.
         if ((field.getModifiers() & Modifier.STATIC) != 0 || field.getType().equals(field.getGenericType())) {
             return List.of();
@@ -181,7 +207,7 @@ public class Reflect2Data extends ReflectData {
             }
             if (typeToResolve instanceof TypeVariable) {
                 throw new IllegalArgumentException(
-                    "Unbound generic type variable " + typeToResolve + "; please use TypeToken instead");
+                        "Unbound generic type variable " + typeToResolve + "; please use TypeToken instead");
             }
         }
 
