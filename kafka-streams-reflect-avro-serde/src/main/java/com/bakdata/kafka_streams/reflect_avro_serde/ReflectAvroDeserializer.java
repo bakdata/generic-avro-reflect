@@ -75,12 +75,12 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
     }
 
     public ReflectAvroDeserializer(SchemaRegistryClient client, Schema schema) {
-        this.schemaRegistryClient = schemaRegistryClient;
+        this.schemaRegistryClient = client;
         this.readerSchema = schema;
     }
 
     public ReflectAvroDeserializer(SchemaRegistryClient client, Type target) {
-        this.schemaRegistryClient = schemaRegistryClient;
+        this.schemaRegistryClient = client;
         if (target == null) {
             target = new TypeToken<T>(getClass()) {}.getType();
             this.readerSchema = target instanceof TypeVariable ? null : Reflect2Data.get().getSchema(target);

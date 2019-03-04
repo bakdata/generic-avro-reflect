@@ -11,11 +11,11 @@ repositories {
 dependencies {
     implementation(project(":generic-avro-reflect"))
 
-    val kafkaVersion = "2.0.0"
+    val kafkaVersion = "2.1.0"
     api(group = "org.apache.kafka", name = "kafka-clients", version = kafkaVersion)
     api(group = "org.apache.kafka", name = "kafka-streams", version = kafkaVersion)
 
-    val confluentVersion = "5.0.0"
+    val confluentVersion = "5.1.0"
     api(group = "io.confluent", name = "kafka-avro-serializer", version = confluentVersion)
     api(group = "io.confluent", name = "kafka-schema-registry-client", version = confluentVersion)
     api(group = "io.confluent", name = "kafka-streams-avro-serde", version = confluentVersion)

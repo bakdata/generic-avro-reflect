@@ -29,9 +29,9 @@ import com.google.common.reflect.TypeToken;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDe;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
-import io.confluent.kafka.serializers.subject.SubjectNameStrategy;
-import io.confluent.kafka.serializers.subject.TopicNameStrategy;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -59,7 +59,7 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
     private boolean autoRegisterSchema = true;
     private EncoderFactory encoderFactory = EncoderFactory.get();
     private BinaryEncoder oldEncoder;
-    private SubjectNameStrategy nameStrategy = new TopicNameStrategy();
+    private MyAbstractKafkaAvroSerDe serde = new MyAbstractKafkaAvroSerDe();
     private boolean isKey;
 
     public ReflectAvroSerializer() {
@@ -96,7 +96,7 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
         final KafkaAvroSerializerConfig config = new KafkaAvroSerializerConfig(configs);
-        nameStrategy = isKey ? config.keySubjectNameStrategy() : config.valueSubjectNameStrategy();
+        serde.configureClientProperties(config);
         this.isKey = isKey;
         this.autoRegisterSchema = config.autoRegisterSchema();
         Map<String, Object> originals = config.originalsWithPrefix("");
@@ -110,9 +110,9 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
     @Override
     public byte[] serialize(String topic, T data) {
         int id = -1;
-        String subject = nameStrategy.getSubjectName(topic, isKey, data);
         try {
             final Schema schema = writerSchema != null ? writerSchema : this.data.getSchema(data);
+            String subject = serde.getSubjectName(topic, isKey, data, schema);
             if (this.autoRegisterSchema) {
                 id = this.schemaRegistryClient.register(subject, schema);
             } else {
@@ -140,5 +140,18 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
     @Override
     public void close() {
 
+    }
+
+    private static class MyAbstractKafkaAvroSerDe extends AbstractKafkaAvroSerDe {
+        @Override
+        protected void configureClientProperties(final AbstractKafkaAvroSerDeConfig config) {
+            super.configureClientProperties(config);
+        }
+
+        @Override
+        protected String getSubjectName(final String topic, final boolean isKey, final Object value,
+                final Schema schema) {
+            return super.getSubjectName(topic, isKey, value, schema);
+        }
     }
 }
