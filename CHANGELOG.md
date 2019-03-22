@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.9.1](https://github.com/bakdata/generic-avro-reflect/tree/0.9.1) (2019-02-28)
+[Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/0.9.0...0.9.1)
+
+
 ## [0.9.0](https://github.com/bakdata/generic-avro-reflect/tree/0.9.0) (2019-02-28)
 
 **Merged pull requests:**
