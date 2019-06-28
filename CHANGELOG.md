@@ -1,5 +1,20 @@
 # Change Log
 
+## [1.0.1](https://github.com/bakdata/generic-avro-reflect/tree/1.0.1) (2019-06-28)
+[Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/1.0.0...1.0.1)
+
+**Closed issues:**
+
+- Make a release [\#5](https://github.com/bakdata/generic-avro-reflect/issues/5)
+
+**Merged pull requests:**
+
+- Removed object reusage in deserializer as this will cause issues in v… [\#6](https://github.com/bakdata/generic-avro-reflect/pull/6) ([@AHeise](https://github.com/AHeise))
+
+## [1.0.0](https://github.com/bakdata/generic-avro-reflect/tree/1.0.0) (2019-03-22)
+[Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/0.9.1...1.0.0)
+
+
 ## [0.9.1](https://github.com/bakdata/generic-avro-reflect/tree/0.9.1) (2019-02-28)
 [Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/0.9.0...0.9.1)
 
