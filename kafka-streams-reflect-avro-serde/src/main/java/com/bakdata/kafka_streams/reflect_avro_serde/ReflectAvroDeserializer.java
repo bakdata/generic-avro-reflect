@@ -54,7 +54,6 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
     private final Schema readerSchema;
     private Reflect2Data data = new Reflect2Data();
     private SchemaRegistryClient schemaRegistryClient;
-    private T previousResult;
     private DecoderFactory decoderFactory = DecoderFactory.get();
     private BinaryDecoder oldDecoder;
 
@@ -116,10 +115,8 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
             int start = buffer.position();
             DatumReader<T> reader = readerCache.computeIfAbsent(id, key ->
                     this.data.createDatumReader(schema, readerSchema == null ? schema : readerSchema));
-            T result = reader.read(previousResult,
+            return reader.read(null,
                     oldDecoder = decoderFactory.binaryDecoder(buffer.array(), start, length, oldDecoder));
-
-            return (previousResult = result);
         } catch (IOException | RuntimeException e) {
             // avro deserialization may throw AvroRuntimeException, NullPointerException, etc
             throw new SerializationException("Error deserializing Avro message for id " + id, e);
