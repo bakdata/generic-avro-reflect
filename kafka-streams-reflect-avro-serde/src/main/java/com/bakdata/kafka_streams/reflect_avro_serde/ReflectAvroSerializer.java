@@ -109,7 +109,7 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
 
     @Override
     public byte[] serialize(String topic, T data) {
-        if(data == null) {
+        if (data == null) {
             return null;
         }
 
