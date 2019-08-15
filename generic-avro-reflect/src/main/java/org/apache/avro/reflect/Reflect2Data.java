@@ -171,12 +171,14 @@ public class Reflect2Data extends ReflectData {
         final TypeToken<?> fieldToken = tt.resolveType(field.getGenericType());
         final TypedValueAccessor typedValueAccessor = new TypedValueAccessor(accessor);
 
-        if (fieldToken.getRawType().equals(Object.class) && !fieldToken.getType().getTypeName()
-                .equals(tp.getTypeName())) {
-            return List.of();
-        }
+        // Field is the desired type variable
         if (fieldToken.getType().equals(tp)) {
             return List.of(typedValueAccessor);
+        }
+
+        // Field is not a nested generic, so there are no subtypes that may match
+        if (fieldToken.getRawType().equals(Object.class)) {
+            return List.of();
         }
 
         final Object fieldValue = accessor.get(instance);
@@ -185,6 +187,7 @@ public class Reflect2Data extends ReflectData {
             return List.of();
         }
 
+        // Evaluate subtypes for type variable
         final TypeToken<?> subtype = fieldToken.isArray() ? fieldToken : fieldToken.getSubtype(fieldValue.getClass());
         final List<TypedValueAccessor> evidencePath = this.getEvidencePath(tp, fieldValue, subtype.getType());
         if (!evidencePath.isEmpty()) {
