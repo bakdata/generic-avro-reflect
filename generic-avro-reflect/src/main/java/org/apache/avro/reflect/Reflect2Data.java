@@ -171,6 +171,10 @@ public class Reflect2Data extends ReflectData {
         final TypeToken<?> fieldToken = tt.resolveType(field.getGenericType());
         final TypedValueAccessor typedValueAccessor = new TypedValueAccessor(accessor);
 
+        if (fieldToken.getRawType().equals(Object.class) && !fieldToken.getType().getTypeName()
+                .equals(tp.getTypeName())) {
+            return List.of();
+        }
         if (fieldToken.getType().equals(tp)) {
             return List.of(typedValueAccessor);
         }
