@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -55,13 +56,13 @@ import org.objenesis.ObjenesisStd;
 /**
  * Not thread-safe!
  */
-@Value
 @EqualsAndHashCode(callSuper = true)
 @Slf4j
 public class Reflect2Data extends ReflectData {
     private final Deque<TypeToken<?>> parameterizedTypeStack = new LinkedList<>();
     private final Objenesis objenesis = new ObjenesisStd(false);
     private final Map<Class<?>, List<Function<Object, Type>>> evidenceFunctions = new HashMap<>();
+    private HashSet<TypeVariable<? extends Class<?>>> typeParameters = null;
 
     public static Reflect2Data get() {
         return new Reflect2Data();
@@ -84,9 +85,10 @@ public class Reflect2Data extends ReflectData {
     }
 
     private Type[] getBoundParameters(final Object instance, final Class<?> clazz) {
-        final TypeVariable<? extends Class<?>>[] typeParameters = clazz.getTypeParameters();
+        final List<TypeVariable<? extends Class<?>>> parameters = Arrays.asList(clazz.getTypeParameters());
+        this.typeParameters = new HashSet<>(parameters);
         final List<Function<Object, Type>> functions = this.evidenceFunctions
-                .computeIfAbsent(clazz, c -> Arrays.stream(typeParameters)
+                .computeIfAbsent(clazz, c -> parameters.stream()
                         .map(tp -> this.getEvidenceFunction(tp, instance, c))
                         .collect(Collectors.toList()));
         return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
@@ -176,9 +178,20 @@ public class Reflect2Data extends ReflectData {
             return List.of(typedValueAccessor);
         }
 
-        // Field is not a nested generic, so there are no subtypes that may match
-        if (fieldToken.getRawType().equals(Object.class)) {
+        // Skip parameterized fields which are not equal to the current parameterized type since they are handled later
+        if (this.typeParameters.contains(fieldToken.getType())) {
             return List.of();
+        }
+
+        // Skip parameterized fields not containing the current parameterized type
+        if (containsParameterizedTypes(fieldToken)) {
+            final Type[] parameterizedTypes = ((ParameterizedType) fieldToken.getType()).getActualTypeArguments();
+            final boolean notResolvable = Arrays.stream(parameterizedTypes)
+                    .allMatch(type -> this.typeParameters.contains(type) && !type.equals(tp));
+
+            if (notResolvable) {
+                return List.of();
+            }
         }
 
         final Object fieldValue = accessor.get(instance);
@@ -198,6 +211,16 @@ public class Reflect2Data extends ReflectData {
         }
 
         return List.of();
+    }
+
+    private static boolean containsParameterizedTypes(final TypeToken<?> fieldToken) {
+        try {
+            ((ParameterizedType) fieldToken.getType()).getActualTypeArguments();
+            return true;
+        } catch (final ClassCastException e) {
+            return false;
+        }
+
     }
 
     @Override

@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.reflect.data.MultipleGenericsWithExtendsClass;
 import org.apache.avro.reflect.data.GenericBaseClass;
 import org.apache.avro.reflect.data.GenericClass;
 import org.apache.avro.reflect.data.GenericSubClass;
@@ -395,6 +396,18 @@ class Reflect2DataTest {
                 .record("TwoGenericClass").namespace(TwoGenericClass.class.getPackageName()).fields()
                 .name("t").type().longType().noDefault()
                 .name("s").type().stringType().noDefault()
+                .endRecord();
+        assertEquals(expected, schema);
+    }
+    
+    @Test
+    void getSchemaForMultipleGenericsWithExtend() {
+        final MultipleGenericsWithExtendsClass<Long, String> test = new MultipleGenericsWithExtendsClass<>(1L,"1");
+        final Schema schema = Reflect2Data.get().getSchema(test);
+        final Schema expected = SchemaBuilder.builder()
+                .record("MultipleGenericsWithExtendsClass").namespace(MultipleGenericsWithExtendsClass.class.getPackageName()).fields()
+                .name("s").type().longType().noDefault()
+                .name("t").type().stringType().noDefault()
                 .endRecord();
         assertEquals(expected, schema);
     }
