@@ -85,9 +85,10 @@ public class Reflect2Data extends ReflectData {
     }
 
     private Type[] getBoundParameters(final Object instance, final Class<?> clazz) {
-        this.typeParameters = new HashSet<>(Arrays.asList(clazz.getTypeParameters()));
+        final List<TypeVariable<? extends Class<?>>> parameters = Arrays.asList(clazz.getTypeParameters());
+        this.typeParameters = new HashSet<>(parameters);
         final List<Function<Object, Type>> functions = this.evidenceFunctions
-                .computeIfAbsent(clazz, c -> this.typeParameters.stream()
+                .computeIfAbsent(clazz, c -> parameters.stream()
                         .map(tp -> this.getEvidenceFunction(tp, instance, c))
                         .collect(Collectors.toList()));
         return functions.stream().map(f -> f.apply(instance)).toArray(Type[]::new);
