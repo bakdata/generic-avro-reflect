@@ -45,7 +45,6 @@ import java.util.stream.Stream;
 import lombok.EqualsAndHashCode;
 import lombok.SneakyThrows;
 import lombok.Value;
-import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
@@ -178,11 +177,11 @@ public class Reflect2Data extends ReflectData {
             return List.of(typedValueAccessor);
         }
 
-        // Skip parameterized fields which are not equal to since they are handled later
+        // Skip parameterized fields which are not equal to the current parameterized type since they are handled later
         if (this.typeParameters.contains(fieldToken.getType())) {
             return List.of();
         }
-       
+
         // Skip parameterized fields not containing the current parameterized type
         if (containsParameterizedTypes(fieldToken)) {
             final Type[] parameterizedTypes = ((ParameterizedType) fieldToken.getType()).getActualTypeArguments();
