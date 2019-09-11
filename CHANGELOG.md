@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.5](https://github.com/bakdata/generic-avro-reflect/tree/1.0.5) (2019-09-11)
+[Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/1.0.4...1.0.5)
+
+**Merged pull requests:**
+
+- Support multiple generics with extends [\#9](https://github.com/bakdata/generic-avro-reflect/pull/9) ([@fapaul](https://github.com/fapaul))
+
 ## [1.0.4](https://github.com/bakdata/generic-avro-reflect/tree/1.0.4) (2019-08-16)
 [Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/1.0.3...1.0.4)
 
