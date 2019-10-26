@@ -25,6 +25,9 @@
 package com.bakdata.kafka_streams.reflect_avro_serde;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.reflect.TypeToken;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
@@ -35,7 +38,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.avro.Schema;
@@ -48,7 +51,20 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 public class ReflectAvroDeserializer<T> implements Deserializer<T> {
     protected static final byte MAGIC_BYTE = 0;
-    private final Map<Integer, DatumReader<T>> readerCache = new ConcurrentHashMap<>();
+
+    private final LoadingCache<Integer, DatumReader<T>> readerCache = CacheBuilder.newBuilder()
+            .maximumSize(1000)
+            .build(new CacheLoader<>() {
+                @SuppressWarnings("unchecked")
+                public DatumReader<T> load(final Integer id) throws IOException, RestClientException {
+                    final Schema schema = ReflectAvroDeserializer.this.schemaRegistryClient.getById(id);
+                    return (DatumReader<T>) ReflectAvroDeserializer.this.data
+                            .createDatumReader(schema,
+                                    ReflectAvroDeserializer.this.readerSchema == null ? schema
+                                            : ReflectAvroDeserializer.this.readerSchema);
+                }
+            });
+
     @Getter(AccessLevel.PACKAGE)
     @VisibleForTesting
     private final Schema readerSchema;
@@ -112,19 +128,16 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
 
         final int id = buffer.getInt();
         try {
-            final Schema schema = this.schemaRegistryClient.getById(id);
+            final DatumReader<T> reader = this.readerCache.get(id);
 
             final int length = buffer.remaining();
             final int start = buffer.position();
-            final DatumReader<T> reader = this.readerCache.computeIfAbsent(id, key ->
-                    this.data.createDatumReader(schema, this.readerSchema == null ? schema : this.readerSchema));
             return reader.read(null,
-                    this.oldDecoder = this.decoderFactory.binaryDecoder(buffer.array(), start, length, this.oldDecoder));
-        } catch (final IOException | RuntimeException e) {
+                    this.oldDecoder =
+                            this.decoderFactory.binaryDecoder(buffer.array(), start, length, this.oldDecoder));
+        } catch (final IOException | RuntimeException | ExecutionException e) {
             // avro deserialization may throw AvroRuntimeException, NullPointerException, etc
             throw new SerializationException("Error deserializing Avro message for id " + id, e);
-        } catch (final RestClientException e) {
-            throw new SerializationException("Error retrieving Avro schema for id " + id, e);
         }
     }
 
