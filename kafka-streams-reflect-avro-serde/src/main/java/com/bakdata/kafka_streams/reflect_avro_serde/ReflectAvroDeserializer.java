@@ -32,6 +32,8 @@ import com.google.common.reflect.TypeToken;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.serializers.AbstractKafkaAvroDeserializer;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -49,7 +51,7 @@ import org.apache.avro.reflect.Reflect2Data;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 
-public class ReflectAvroDeserializer<T> implements Deserializer<T> {
+public class ReflectAvroDeserializer<T> extends AbstractKafkaAvroDeserializer implements Deserializer<T> {
     protected static final byte MAGIC_BYTE = 0;
 
     private final LoadingCache<Integer, DatumReader<T>> readerCache = CacheBuilder.newBuilder()
@@ -63,7 +65,6 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
                     return (DatumReader<T>) ReflectAvroDeserializer.this.data.createDatumReader(schema, reader);
                 }
             });
-
     @Getter(AccessLevel.PACKAGE)
     @VisibleForTesting
     private final Schema readerSchema;
@@ -106,7 +107,7 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
     @Override
     public void configure(final Map<String, ?> configs, final boolean isKey) {
         if (this.schemaRegistryClient == null) {
-            final var config = new KafkaAvroDeserializerConfig(configs);
+            final AbstractKafkaSchemaSerDeConfig config = new KafkaAvroDeserializerConfig(configs);
             this.schemaRegistryClient =
                     new CachedSchemaRegistryClient(config.getSchemaRegistryUrls(), config.getMaxSchemasPerSubject(),
                             config.originalsWithPrefix(""));

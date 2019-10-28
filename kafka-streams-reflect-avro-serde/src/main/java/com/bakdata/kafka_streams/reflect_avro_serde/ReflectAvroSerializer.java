@@ -29,11 +29,14 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.reflect.TypeToken;
+import io.confluent.kafka.schemaregistry.avro.AvroSchema;
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDe;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerializer;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -52,7 +55,7 @@ import org.apache.avro.reflect.Reflect2Data;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Serializer;
 
-public class ReflectAvroSerializer<T> implements Serializer<T> {
+public class ReflectAvroSerializer<T> extends AbstractKafkaAvroSerializer implements Serializer<T> {
     private final LoadingCache<Integer, DatumWriter<T>> writerCache = CacheBuilder.newBuilder()
             .maximumSize(1000)
             .build(new CacheLoader<>() {
@@ -62,7 +65,6 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
                             .createDatumWriter(ReflectAvroSerializer.this.writerSchema);
                 }
             });
-
     @Getter(AccessLevel.PACKAGE)
     @VisibleForTesting
     private Schema writerSchema;
@@ -71,7 +73,6 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
     private boolean autoRegisterSchema = true;
     private final EncoderFactory encoderFactory = EncoderFactory.get();
     private BinaryEncoder oldEncoder = null;
-    private final MyAbstractKafkaAvroSerDe serde = new MyAbstractKafkaAvroSerDe();
     private boolean isKey = false;
 
     public ReflectAvroSerializer() {
@@ -107,8 +108,8 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
 
     @Override
     public void configure(final Map<String, ?> configs, final boolean isKey) {
-        final KafkaAvroSerializerConfig config = new KafkaAvroSerializerConfig(configs);
-        this.serde.configureClientProperties(config);
+        final AbstractKafkaSchemaSerDeConfig config = new KafkaAvroSerializerConfig(configs);
+        this.configureClientProperties(config, new AvroSchemaProvider());
         this.isKey = isKey;
         this.autoRegisterSchema = config.autoRegisterSchema();
         final Map<String, Object> originals = config.originalsWithPrefix("");
@@ -129,7 +130,7 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
             if (this.writerSchema == null) {
                 this.writerSchema = this.data.getSchema(data);
             }
-            final String subject = this.serde.getSubjectName(topic, this.isKey, data, this.writerSchema);
+            final String subject = this.getSubjectName(topic, this.isKey, data, new AvroSchema(this.writerSchema));
             id = this.storeOrRetrieveSchema(subject, this.writerSchema);
 
             final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -163,18 +164,5 @@ public class ReflectAvroSerializer<T> implements Serializer<T> {
     @Override
     public void close() {
 
-    }
-
-    private static class MyAbstractKafkaAvroSerDe extends AbstractKafkaAvroSerDe {
-        @Override
-        protected void configureClientProperties(final AbstractKafkaAvroSerDeConfig config) {
-            super.configureClientProperties(config);
-        }
-
-        @Override
-        protected String getSubjectName(final String topic, final boolean isKey, final Object value,
-                final Schema schema) {
-            return super.getSubjectName(topic, isKey, value, schema);
-        }
     }
 }

@@ -42,26 +42,26 @@ public class ReflectAvroSerde<T> implements Serde<T> {
         this(null, (Type) null);
     }
 
-    public ReflectAvroSerde(Schema schema) {
+    public ReflectAvroSerde(final Schema schema) {
         this(null, schema);
     }
 
-    public ReflectAvroSerde(Type target) {
+    public ReflectAvroSerde(final Type target) {
         this(null, target);
     }
 
-    public ReflectAvroSerde(SchemaRegistryClient client) {
+    public ReflectAvroSerde(final SchemaRegistryClient client) {
         this(client, (Type) null);
     }
 
-    public ReflectAvroSerde(SchemaRegistryClient client, Schema schema) {
+    public ReflectAvroSerde(final SchemaRegistryClient client, final Schema schema) {
         this.inner = Serdes.serdeFrom(new ReflectAvroSerializer<>(client, schema),
                 new ReflectAvroDeserializer<>(client, schema));
     }
 
-    public ReflectAvroSerde(SchemaRegistryClient client, Type target) {
+    public ReflectAvroSerde(final SchemaRegistryClient client, Type target) {
         if (target == null) {
-            target = new TypeToken<T>(getClass()) {}.getType();
+            target = new TypeToken<T>(this.getClass()) {}.getType();
         }
         this.inner = Serdes.serdeFrom(
                 new ReflectAvroSerializer<>(client, target instanceof TypeVariable ? null : target),
@@ -76,7 +76,7 @@ public class ReflectAvroSerde<T> implements Serde<T> {
         return this.inner.deserializer();
     }
 
-    public void configure(Map<String, ?> serdeConfig, boolean isSerdeForRecordKeys) {
+    public void configure(final Map<String, ?> serdeConfig, final boolean isSerdeForRecordKeys) {
         this.inner.serializer().configure(serdeConfig, isSerdeForRecordKeys);
         this.inner.deserializer().configure(serdeConfig, isSerdeForRecordKeys);
     }

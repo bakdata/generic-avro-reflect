@@ -29,8 +29,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.bakdata.kafka_streams.reflect_avro_serde.data.GenericClass;
 import com.bakdata.schemaregistrymock.SchemaRegistryMock;
+import com.bakdata.schemaregistrymock.junit5.SchemaRegistryMockExtension;
 import com.google.common.reflect.TypeToken;
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Map;
@@ -44,34 +45,37 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class ReflectAvroSerdeTest {
     public static final String TOPIC = "mock";
     @RegisterExtension
-    SchemaRegistryMock schemaRegistryClient = new SchemaRegistryMock();
+    SchemaRegistryMock schemaRegistryClient = new SchemaRegistryMockExtension();
 
-    private <T> ReflectAvroDeserializer<T> configured(ReflectAvroDeserializer<T> deserializer) {
+    private <T> ReflectAvroDeserializer<T> configured(final ReflectAvroDeserializer<T> deserializer) {
         deserializer.configure(
-                Map.of(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryClient.getUrl()), true);
+                Map.of(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, this.schemaRegistryClient.getUrl()),
+                true);
         return deserializer;
     }
 
-    private <T> ReflectAvroSerializer<T> configured(ReflectAvroSerializer<T> serializer) {
+    private <T> ReflectAvroSerializer<T> configured(final ReflectAvroSerializer<T> serializer) {
         serializer.configure(
-                Map.of(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryClient.getUrl()), true);
+                Map.of(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, this.schemaRegistryClient.getUrl()),
+                true);
         return serializer;
     }
 
-    private <T> ReflectAvroSerde<T> configured(ReflectAvroSerde<T> serde) {
+    private <T> ReflectAvroSerde<T> configured(final ReflectAvroSerde<T> serde) {
         serde.configure(
-                Map.of(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryClient.getUrl()), true);
+                Map.of(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, this.schemaRegistryClient.getUrl()),
+                true);
         return serde;
     }
 
     @SneakyThrows
-    private void assertThatSchemaInSchemaRegistry(Schema expectedSchema) {
-        assertThat(schemaRegistryClient.getSchemaRegistryClient().getById(1)).isEqualTo(expectedSchema);
+    private void assertThatSchemaInSchemaRegistry(final Schema expectedSchema) {
+        assertThat(this.schemaRegistryClient.getSchemaRegistryClient().getById(1)).isEqualTo(expectedSchema);
     }
 
     @Nested
     class DynamicallyInferredType {
-        Schema fieldIsString = SchemaBuilder.record(GenericClass.class.getName()).fields()
+        private final Schema fieldIsString = SchemaBuilder.record(GenericClass.class.getName()).fields()
                 .name("genericField").type().stringType().noDefault()
                 .endRecord();
 
@@ -81,32 +85,35 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<String> input = new GenericClass<>("test");
 
-                ReflectAvroSerde<GenericClass<String>> serde =
-                        configured(new ReflectAvroSerde<>(schemaRegistryClient.getSchemaRegistryClient()));
+                final ReflectAvroSerde<GenericClass<String>> serde =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerde<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()));
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<String> deserialized = serde.deserializer().deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<String> input = new GenericClass<>("test");
 
-                ReflectAvroSerializer<GenericClass<String>> serializer =
-                        configured(new ReflectAvroSerializer<>(schemaRegistryClient.getSchemaRegistryClient()));
+                final ReflectAvroSerializer<GenericClass<String>> serializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerializer<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()));
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<String>> deserializer =
-                        configured(new ReflectAvroDeserializer<>(schemaRegistryClient.getSchemaRegistryClient()));
+                final ReflectAvroDeserializer<GenericClass<String>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()));
                 final GenericClass<String> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
             }
         }
 
@@ -116,43 +123,45 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<String> input = new GenericClass<>("test");
 
-                ReflectAvroSerde<GenericClass<String>> serde = configured(new ReflectAvroSerde<>());
+                final ReflectAvroSerde<GenericClass<String>> serde =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerde<>());
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<String> deserialized = serde.deserializer().deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<String> input = new GenericClass<>("test");
 
-                ReflectAvroSerializer<GenericClass<String>> serializer = configured(new ReflectAvroSerializer<>());
+                final ReflectAvroSerializer<GenericClass<String>> serializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerializer<>());
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<String>> deserializer =
-                        configured(new ReflectAvroDeserializer<>());
+                final ReflectAvroDeserializer<GenericClass<String>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>());
                 final GenericClass<String> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(DynamicallyInferredType.this.fieldIsString);
             }
         }
     }
 
     @Nested
     class LimitationsOfImplicitlyType {
-        Schema fieldIsStringArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
+        private final Schema fieldIsStringArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
                 .name("genericField").type().array().prop("java-class", ArrayList.class.getName()).items().stringType()
                 .noDefault()
                 .endRecord();
-        Schema object = SchemaBuilder.record("Object").namespace("java.lang").fields().endRecord();
-        Schema fieldIsObjectArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
-                .name("genericField").type().array().prop("java-class", ArrayList.class.getName()).items(object)
+        private final Schema object = SchemaBuilder.record("Object").namespace("java.lang").fields().endRecord();
+        private final Schema fieldIsObjectArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
+                .name("genericField").type().array().prop("java-class", ArrayList.class.getName()).items(this.object)
                 .noDefault()
                 .endRecord();
 
@@ -160,9 +169,10 @@ class ReflectAvroSerdeTest {
         void cannotInferEmptyArrayElementType() {
             final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-            ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
-                    configured(
-                            new ReflectAvroSerde<>(schemaRegistryClient.getSchemaRegistryClient()));
+            final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
+                    ReflectAvroSerdeTest.this.configured(
+                            new ReflectAvroSerde<>(
+                                    ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()));
             final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
             final GenericClass<ArrayList<String>> deserialized =
@@ -170,9 +180,10 @@ class ReflectAvroSerdeTest {
 
             assertThat(deserialized).isEqualTo(input);
 
-            assertThatCode(() -> assertThatSchemaInSchemaRegistry(fieldIsStringArray)).isNotNull();
+            assertThatCode(() -> ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(
+                    this.fieldIsStringArray)).isNotNull();
 
-            assertThatSchemaInSchemaRegistry(fieldIsObjectArray);
+            ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(this.fieldIsObjectArray);
         }
     }
 
@@ -181,9 +192,9 @@ class ReflectAvroSerdeTest {
      */
     @Nested
     class ExplicitType {
-        Type explicitType = new TypeToken<GenericClass<ArrayList<String>>>() {}.getType();
+        private final Type explicitType = new TypeToken<GenericClass<ArrayList<String>>>() {}.getType();
 
-        Schema fieldIsStringArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
+        private final Schema fieldIsStringArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
                 .name("genericField").type().array().prop("java-class", ArrayList.class.getName()).items().stringType()
                 .noDefault()
                 .endRecord();
@@ -194,8 +205,9 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerde<GenericClass<ArrayList<String>>> serde = configured(
-                        new ReflectAvroSerde<>(schemaRegistryClient.getSchemaRegistryClient(), explicitType));
+                final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde = ReflectAvroSerdeTest.this.configured(
+                        new ReflectAvroSerde<>(ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient(),
+                                ExplicitType.this.explicitType));
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<ArrayList<String>> deserialized =
@@ -203,25 +215,29 @@ class ReflectAvroSerdeTest {
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitType.this.fieldIsStringArray);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer = configured(
-                        new ReflectAvroSerializer<>(schemaRegistryClient.getSchemaRegistryClient(), explicitType));
+                final ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroSerializer<>(
+                                        ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient(),
+                                        ExplicitType.this.explicitType));
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
-                        configured(new ReflectAvroDeserializer<>(schemaRegistryClient.getSchemaRegistryClient(),
-                                explicitType));
+                final ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient(),
+                                ExplicitType.this.explicitType));
                 final GenericClass<ArrayList<String>> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitType.this.fieldIsStringArray);
             }
         }
 
@@ -231,8 +247,8 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
-                        configured(new ReflectAvroSerde<>(explicitType));
+                final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerde<>(ExplicitType.this.explicitType));
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<ArrayList<String>> deserialized =
@@ -240,24 +256,26 @@ class ReflectAvroSerdeTest {
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitType.this.fieldIsStringArray);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer = configured(
-                        new ReflectAvroSerializer<>(explicitType));
+                final ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroSerializer<>(ExplicitType.this.explicitType));
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
-                        configured(new ReflectAvroDeserializer<>(explicitType));
+                final ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroDeserializer<>(ExplicitType.this.explicitType));
                 final GenericClass<ArrayList<String>> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitType.this.fieldIsStringArray);
             }
         }
     }
@@ -267,7 +285,7 @@ class ReflectAvroSerdeTest {
      */
     @Nested
     class ExplicitSchema {
-        Schema schema = SchemaBuilder.record(GenericClass.class.getName()).fields()
+        private final Schema schema = SchemaBuilder.record(GenericClass.class.getName()).fields()
                 .name("genericField").type().array().items().stringType().noDefault()
                 .endRecord();
 
@@ -277,8 +295,9 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerde<GenericClass<ArrayList<String>>> serde = configured(
-                        new ReflectAvroSerde<>(schemaRegistryClient.getSchemaRegistryClient(), schema));
+                final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde = ReflectAvroSerdeTest.this.configured(
+                        new ReflectAvroSerde<>(ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient(),
+                                ExplicitSchema.this.schema));
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<ArrayList<String>> deserialized =
@@ -286,25 +305,29 @@ class ReflectAvroSerdeTest {
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(schema);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitSchema.this.schema);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer = configured(
-                        new ReflectAvroSerializer<>(schemaRegistryClient.getSchemaRegistryClient(), schema));
+                final ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroSerializer<>(
+                                        ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient(),
+                                        ExplicitSchema.this.schema));
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
-                        configured(new ReflectAvroDeserializer<>(schemaRegistryClient.getSchemaRegistryClient(),
-                                schema));
+                final ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient(),
+                                ExplicitSchema.this.schema));
                 final GenericClass<ArrayList<String>> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(schema);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitSchema.this.schema);
             }
         }
 
@@ -314,8 +337,8 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
-                        configured(new ReflectAvroSerde<>(schema));
+                final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerde<>(ExplicitSchema.this.schema));
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<ArrayList<String>> deserialized =
@@ -323,24 +346,25 @@ class ReflectAvroSerdeTest {
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(schema);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitSchema.this.schema);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer = configured(
-                        new ReflectAvroSerializer<>(schema));
+                final ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroSerializer<>(ExplicitSchema.this.schema));
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
-                        configured(new ReflectAvroDeserializer<>(schema));
+                final ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>(ExplicitSchema.this.schema));
                 final GenericClass<ArrayList<String>> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(schema);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(ExplicitSchema.this.schema);
             }
         }
     }
@@ -351,7 +375,7 @@ class ReflectAvroSerdeTest {
      */
     @Nested
     class BoundTypeParameter {
-        Schema fieldIsStringArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
+        private final Schema fieldIsStringArray = SchemaBuilder.record(GenericClass.class.getName()).fields()
                 .name("genericField").type().array().prop("java-class", ArrayList.class.getName()).items().stringType()
                 .noDefault()
                 .endRecord();
@@ -362,8 +386,9 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerde<GenericClass<ArrayList<String>>> serde = configured(
-                        new ReflectAvroSerde<>(schemaRegistryClient.getSchemaRegistryClient()) {});
+                final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde = ReflectAvroSerdeTest.this.configured(
+                        new ReflectAvroSerde<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()) {});
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<ArrayList<String>> deserialized =
@@ -371,24 +396,27 @@ class ReflectAvroSerdeTest {
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(BoundTypeParameter.this.fieldIsStringArray);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer = configured(
-                        new ReflectAvroSerializer<>(schemaRegistryClient.getSchemaRegistryClient()) {});
+                final ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroSerializer<>(
+                                        ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()) {});
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
-                        configured(new ReflectAvroDeserializer<>(schemaRegistryClient.getSchemaRegistryClient()) {});
+                final ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>(
+                                ReflectAvroSerdeTest.this.schemaRegistryClient.getSchemaRegistryClient()) {});
                 final GenericClass<ArrayList<String>> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(BoundTypeParameter.this.fieldIsStringArray);
             }
         }
 
@@ -398,8 +426,8 @@ class ReflectAvroSerdeTest {
             void shouldDeSerializeWithSerde() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
-                        configured(new ReflectAvroSerde<>() {});
+                final ReflectAvroSerde<GenericClass<ArrayList<String>>> serde =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroSerde<>() {});
                 final byte[] serialized = serde.serializer().serialize(TOPIC, input);
 
                 final GenericClass<ArrayList<String>> deserialized =
@@ -407,24 +435,25 @@ class ReflectAvroSerdeTest {
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(BoundTypeParameter.this.fieldIsStringArray);
             }
 
             @Test
             void shouldDeSerializeWithDeSerializer() {
                 final GenericClass<ArrayList<String>> input = new GenericClass<>(new ArrayList<>());
 
-                ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer = configured(
-                        new ReflectAvroSerializer<>() {});
+                final ReflectAvroSerializer<GenericClass<ArrayList<String>>> serializer =
+                        ReflectAvroSerdeTest.this.configured(
+                                new ReflectAvroSerializer<>() {});
                 final byte[] serialized = serializer.serialize(TOPIC, input);
 
-                ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
-                        configured(new ReflectAvroDeserializer<>() {});
+                final ReflectAvroDeserializer<GenericClass<ArrayList<String>>> deserializer =
+                        ReflectAvroSerdeTest.this.configured(new ReflectAvroDeserializer<>() {});
                 final GenericClass<ArrayList<String>> deserialized = deserializer.deserialize("mock", serialized);
 
                 assertThat(deserialized).isEqualTo(input);
 
-                assertThatSchemaInSchemaRegistry(fieldIsStringArray);
+                ReflectAvroSerdeTest.this.assertThatSchemaInSchemaRegistry(BoundTypeParameter.this.fieldIsStringArray);
             }
         }
     }

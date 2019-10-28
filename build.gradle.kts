@@ -1,9 +1,10 @@
 plugins {
     // release
-    id("net.researchgate.release") version "2.6.0"
-    id("com.bakdata.sonar") version "1.1.4"
-    id("com.bakdata.sonatype") version "1.1.4"
-    id("org.hildan.github.changelog") version "0.8.0"
+    id("net.researchgate.release") version "2.8.1"
+    id("com.bakdata.sonar") version "1.1.7"
+    id("com.bakdata.sonatype") version "1.1.7"
+    id("org.hildan.github.changelog") version "1.7.0"
+    id("io.freefair.lombok") version "5.3.3.3" apply false
 }
 
 allprojects {
@@ -39,14 +40,15 @@ configure<org.hildan.github.changelog.plugin.GitHubChangelogExtension> {
 
 subprojects {
     apply(plugin = "java-library")
+    apply(plugin = "io.freefair.lombok")
 
     configure<JavaPluginConvention> {
-        sourceCompatibility = org.gradle.api.JavaVersion.VERSION_11
-        targetCompatibility = org.gradle.api.JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     dependencies {
-        val junitVersion = "5.3.0"
+        val junitVersion = "5.7.2"
         "implementation"(group = "org.junit.jupiter", name = "junit-jupiter-engine", version = junitVersion)
         "testImplementation"(group = "org.junit.jupiter", name = "junit-jupiter-api", version = junitVersion)
         "testImplementation"(group = "org.junit.jupiter", name = "junit-jupiter-params", version = junitVersion)
@@ -54,10 +56,5 @@ subprojects {
 
         "testImplementation"(group = "org.slf4j", name = "slf4j-log4j12", version = "1.7.25")
         "testImplementation"(group = "org.assertj", name = "assertj-core", version = "3.11.1")
-
-        "compileOnly"("org.projectlombok:lombok:1.18.6")
-        "annotationProcessor"("org.projectlombok:lombok:1.18.6")
-        "testCompileOnly"("org.projectlombok:lombok:1.18.6")
-        "testAnnotationProcessor"("org.projectlombok:lombok:1.18.6")
     }
 }
