@@ -58,10 +58,9 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
                 @SuppressWarnings("unchecked")
                 public DatumReader<T> load(final Integer id) throws IOException, RestClientException {
                     final Schema schema = ReflectAvroDeserializer.this.schemaRegistryClient.getById(id);
-                    return (DatumReader<T>) ReflectAvroDeserializer.this.data
-                            .createDatumReader(schema,
-                                    ReflectAvroDeserializer.this.readerSchema == null ? schema
-                                            : ReflectAvroDeserializer.this.readerSchema);
+                    final Schema reader = ReflectAvroDeserializer.this.readerSchema == null ? schema
+                            : ReflectAvroDeserializer.this.readerSchema;
+                    return (DatumReader<T>) ReflectAvroDeserializer.this.data.createDatumReader(schema, reader);
                 }
             });
 
