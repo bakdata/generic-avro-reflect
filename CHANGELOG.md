@@ -1,5 +1,16 @@
 # Change Log
 
+## [1.0.8](https://github.com/bakdata/generic-avro-reflect/tree/1.0.8) (2019-10-28)
+[Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/1.0.7...1.0.8)
+
+**Merged pull requests:**
+
+- Make ReflectAvroSerde thread\-safe [\#10](https://github.com/bakdata/generic-avro-reflect/pull/10) ([@SvenLehmann](https://github.com/SvenLehmann))
+
+## [1.0.7](https://github.com/bakdata/generic-avro-reflect/tree/1.0.7) (2019-10-25)
+[Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/1.0.6...1.0.7)
+
+
 ## [1.0.6](https://github.com/bakdata/generic-avro-reflect/tree/1.0.6) (2019-10-17)
 [Full Changelog](https://github.com/bakdata/generic-avro-reflect/compare/1.0.5...1.0.6)
 
