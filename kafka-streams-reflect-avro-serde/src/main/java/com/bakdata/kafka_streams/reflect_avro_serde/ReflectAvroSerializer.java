@@ -25,6 +25,9 @@
 package com.bakdata.kafka_streams.reflect_avro_serde;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.reflect.TypeToken;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
@@ -37,8 +40,8 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.avro.Schema;
@@ -50,95 +53,111 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Serializer;
 
 public class ReflectAvroSerializer<T> implements Serializer<T> {
-    private final Map<Integer, DatumWriter<T>> writerCache = new HashMap<>();
+    private final LoadingCache<Integer, DatumWriter<T>> writerCache = CacheBuilder.newBuilder()
+            .maximumSize(1000)
+            .build(new CacheLoader<>() {
+                @SuppressWarnings("unchecked")
+                public DatumWriter<T> load(final Integer id) {
+                    return (DatumWriter<T>) ReflectAvroSerializer.this.data
+                            .createDatumWriter(ReflectAvroSerializer.this.writerSchema);
+                }
+            });
+
     @Getter(AccessLevel.PACKAGE)
     @VisibleForTesting
-    private final Schema writerSchema;
+    private Schema writerSchema;
     private SchemaRegistryClient schemaRegistryClient;
-    private Reflect2Data data = new Reflect2Data();
+    private final Reflect2Data data = new Reflect2Data();
     private boolean autoRegisterSchema = true;
-    private EncoderFactory encoderFactory = EncoderFactory.get();
-    private BinaryEncoder oldEncoder;
-    private MyAbstractKafkaAvroSerDe serde = new MyAbstractKafkaAvroSerDe();
-    private boolean isKey;
+    private final EncoderFactory encoderFactory = EncoderFactory.get();
+    private BinaryEncoder oldEncoder = null;
+    private final MyAbstractKafkaAvroSerDe serde = new MyAbstractKafkaAvroSerDe();
+    private boolean isKey = false;
 
     public ReflectAvroSerializer() {
         this(null, (Type) null);
     }
 
-    public ReflectAvroSerializer(Schema schema) {
+    public ReflectAvroSerializer(final Schema schema) {
         this(null, schema);
     }
 
-    public ReflectAvroSerializer(Type target) {
+    public ReflectAvroSerializer(final Type target) {
         this(null, target);
     }
 
-    public ReflectAvroSerializer(SchemaRegistryClient client) {
+    public ReflectAvroSerializer(final SchemaRegistryClient client) {
         this(client, (Type) null);
     }
 
-    public ReflectAvroSerializer(SchemaRegistryClient client, Schema schema) {
-        this.schemaRegistryClient = schemaRegistryClient;
+    public ReflectAvroSerializer(final SchemaRegistryClient client, final Schema schema) {
+        this.schemaRegistryClient = client;
         this.writerSchema = schema;
     }
 
-    public ReflectAvroSerializer(SchemaRegistryClient client, Type target) {
-        this.schemaRegistryClient = schemaRegistryClient;
+    public ReflectAvroSerializer(final SchemaRegistryClient client, final Type target) {
+        this.schemaRegistryClient = client;
         if (target == null) {
-            target = new TypeToken<T>(getClass()) {}.getType();
-            this.writerSchema = target instanceof TypeVariable ? null : Reflect2Data.get().getSchema(target);
+            final Type type = new TypeToken<T>(this.getClass()) {}.getType();
+            this.writerSchema = type instanceof TypeVariable ? null : Reflect2Data.get().getSchema(type);
         } else {
             this.writerSchema = Reflect2Data.get().getSchema(target);
         }
     }
 
     @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {
+    public void configure(final Map<String, ?> configs, final boolean isKey) {
         final KafkaAvroSerializerConfig config = new KafkaAvroSerializerConfig(configs);
-        serde.configureClientProperties(config);
+        this.serde.configureClientProperties(config);
         this.isKey = isKey;
         this.autoRegisterSchema = config.autoRegisterSchema();
-        Map<String, Object> originals = config.originalsWithPrefix("");
+        final Map<String, Object> originals = config.originalsWithPrefix("");
         if (this.schemaRegistryClient == null) {
-            this.schemaRegistryClient =
-                    new CachedSchemaRegistryClient(config.getSchemaRegistryUrls(), config.getMaxSchemasPerSubject(),
-                            originals);
+            this.schemaRegistryClient = new CachedSchemaRegistryClient(config.getSchemaRegistryUrls(),
+                    config.getMaxSchemasPerSubject(), originals);
         }
     }
 
     @Override
-    public byte[] serialize(String topic, T data) {
+    public byte[] serialize(final String topic, final T data) {
         if (data == null) {
             return null;
         }
 
         int id = -1;
         try {
-            final Schema schema = writerSchema != null ? writerSchema : this.data.getSchema(data);
-            String subject = serde.getSubjectName(topic, isKey, data, schema);
-            if (this.autoRegisterSchema) {
-                id = this.schemaRegistryClient.register(subject, schema);
-            } else {
-                id = this.schemaRegistryClient.getId(subject, schema);
+            if (this.writerSchema == null) {
+                this.writerSchema = this.data.getSchema(data);
             }
+            final String subject = this.serde.getSubjectName(topic, this.isKey, data, this.writerSchema);
+            id = this.storeOrRetrieveSchema(subject, this.writerSchema);
 
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
             out.write(0);
             out.write(ByteBuffer.allocate(4).putInt(id).array());
-            BinaryEncoder encoder = oldEncoder = this.encoderFactory.directBinaryEncoder(out, oldEncoder);
-            DatumWriter<T> writer = writerCache.computeIfAbsent(id, key -> this.data.createDatumWriter(schema));
+            final BinaryEncoder encoder =
+                    this.oldEncoder = this.encoderFactory.directBinaryEncoder(out, this.oldEncoder);
+            final DatumWriter<T> writer = this.writerCache.get(id);
 
-            ((DatumWriter) writer).write(data, encoder);
+            writer.write(data, encoder);
             encoder.flush();
 
             return out.toByteArray();
-        } catch (IOException | RuntimeException e) {
+        } catch (final IOException | RuntimeException | ExecutionException e) {
             // avro deserialization may throw AvroRuntimeException, NullPointerException, etc
             throw new SerializationException("Error serializing Avro message for id " + id, e);
-        } catch (RestClientException e) {
+        } catch (final RestClientException e) {
             throw new SerializationException("Error retrieving Avro schema for id " + id, e);
         }
+    }
+
+    private int storeOrRetrieveSchema(final String subject, final Schema schema)
+            throws IOException, RestClientException {
+        if (this.autoRegisterSchema) {
+            return this.schemaRegistryClient.register(subject, schema);
+        }
+
+        return this.schemaRegistryClient.getId(subject, schema);
     }
 
     @Override

@@ -25,6 +25,9 @@
 package com.bakdata.kafka_streams.reflect_avro_serde;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.reflect.TypeToken;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
@@ -34,8 +37,8 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.avro.Schema;
@@ -48,50 +51,62 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 public class ReflectAvroDeserializer<T> implements Deserializer<T> {
     protected static final byte MAGIC_BYTE = 0;
-    private final Map<Integer, DatumReader<T>> readerCache = new HashMap<>();
+
+    private final LoadingCache<Integer, DatumReader<T>> readerCache = CacheBuilder.newBuilder()
+            .maximumSize(1000)
+            .build(new CacheLoader<>() {
+                @SuppressWarnings("unchecked")
+                public DatumReader<T> load(final Integer id) throws IOException, RestClientException {
+                    final Schema schema = ReflectAvroDeserializer.this.schemaRegistryClient.getById(id);
+                    final Schema reader = ReflectAvroDeserializer.this.readerSchema == null ? schema
+                            : ReflectAvroDeserializer.this.readerSchema;
+                    return (DatumReader<T>) ReflectAvroDeserializer.this.data.createDatumReader(schema, reader);
+                }
+            });
+
     @Getter(AccessLevel.PACKAGE)
     @VisibleForTesting
     private final Schema readerSchema;
-    private Reflect2Data data = new Reflect2Data();
+    private final Reflect2Data data = new Reflect2Data();
     private SchemaRegistryClient schemaRegistryClient;
-    private DecoderFactory decoderFactory = DecoderFactory.get();
-    private BinaryDecoder oldDecoder;
+    private final DecoderFactory decoderFactory = DecoderFactory.get();
+    private BinaryDecoder oldDecoder = null;
 
     public ReflectAvroDeserializer() {
         this(null, (Type) null);
     }
 
-    public ReflectAvroDeserializer(Schema schema) {
+    public ReflectAvroDeserializer(final Schema schema) {
         this(null, schema);
     }
 
-    public ReflectAvroDeserializer(Type target) {
+    public ReflectAvroDeserializer(final Type target) {
         this(null, target);
     }
 
-    public ReflectAvroDeserializer(SchemaRegistryClient client) {
+    public ReflectAvroDeserializer(final SchemaRegistryClient client) {
         this(client, (Type) null);
     }
 
-    public ReflectAvroDeserializer(SchemaRegistryClient client, Schema schema) {
+    public ReflectAvroDeserializer(final SchemaRegistryClient client, final Schema schema) {
         this.schemaRegistryClient = client;
         this.readerSchema = schema;
     }
 
-    public ReflectAvroDeserializer(SchemaRegistryClient client, Type target) {
+    public ReflectAvroDeserializer(final SchemaRegistryClient client, final Type target) {
         this.schemaRegistryClient = client;
         if (target == null) {
-            target = new TypeToken<T>(getClass()) {}.getType();
-            this.readerSchema = target instanceof TypeVariable ? null : Reflect2Data.get().getSchema(target);
+            final Type type = new TypeToken<T>(this.getClass()) {}.getType();
+            this.readerSchema = type instanceof TypeVariable ? null : Reflect2Data.get().getSchema(type);
         } else {
             this.readerSchema = Reflect2Data.get().getSchema(target);
         }
     }
 
     @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {
+    public void configure(final Map<String, ?> configs, final boolean isKey) {
         if (this.schemaRegistryClient == null) {
-            var config = new KafkaAvroDeserializerConfig(configs);
+            final var config = new KafkaAvroDeserializerConfig(configs);
             this.schemaRegistryClient =
                     new CachedSchemaRegistryClient(config.getSchemaRegistryUrls(), config.getMaxSchemasPerSubject(),
                             config.originalsWithPrefix(""));
@@ -99,32 +114,29 @@ public class ReflectAvroDeserializer<T> implements Deserializer<T> {
     }
 
     @Override
-    public T deserialize(String topic, byte[] data) {
+    public T deserialize(final String topic, final byte[] data) {
         if (data == null) {
             return null;
         }
-        int id = -1;
+
+        final ByteBuffer buffer = ByteBuffer.wrap(data);
+
+        if (buffer.get() != MAGIC_BYTE) {
+            throw new SerializationException("Error deserializing Avro message, Unknown magic byte!");
+        }
+
+        final int id = buffer.getInt();
         try {
-            ByteBuffer buffer = ByteBuffer.wrap(data);
+            final DatumReader<T> reader = this.readerCache.get(id);
 
-            if (buffer.get() != MAGIC_BYTE) {
-                throw new SerializationException("Unknown magic byte!");
-            }
-
-            id = buffer.getInt();
-            Schema schema = schemaRegistryClient.getById(id);
-
-            int length = buffer.remaining();
-            int start = buffer.position();
-            DatumReader<T> reader = readerCache.computeIfAbsent(id, key ->
-                    this.data.createDatumReader(schema, readerSchema == null ? schema : readerSchema));
+            final int length = buffer.remaining();
+            final int start = buffer.position();
             return reader.read(null,
-                    oldDecoder = decoderFactory.binaryDecoder(buffer.array(), start, length, oldDecoder));
-        } catch (IOException | RuntimeException e) {
+                    this.oldDecoder =
+                            this.decoderFactory.binaryDecoder(buffer.array(), start, length, this.oldDecoder));
+        } catch (final IOException | RuntimeException | ExecutionException e) {
             // avro deserialization may throw AvroRuntimeException, NullPointerException, etc
             throw new SerializationException("Error deserializing Avro message for id " + id, e);
-        } catch (RestClientException e) {
-            throw new SerializationException("Error retrieving Avro schema for id " + id, e);
         }
     }
 
