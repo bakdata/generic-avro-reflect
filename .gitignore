@@ -1,6 +1,5 @@
 .*
 !.gitignore
-!.github
 !.travis.yml
 build/
 out/
