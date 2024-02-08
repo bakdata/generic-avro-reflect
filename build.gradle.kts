@@ -26,7 +26,8 @@ configure<com.bakdata.gradle.SonatypeSettings> {
         }
         developer {
             name.set("Lawrence Benson")
-            id.set("lawben") }
+            id.set("lawben")
+        }
     }
 }
 
