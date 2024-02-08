@@ -61,3 +61,6 @@ subprojects {
         "testAnnotationProcessor"("org.projectlombok:lombok:1.18.6")
     }
 }
+
+val sonarqube by tasks
+sonarqube.enabled = false //FIXME requires Java 17

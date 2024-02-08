@@ -5,7 +5,7 @@ plugins {
 description = "Provides an Avro Serde that can (de)serialize (almost) arbitrary Java objects in Kafka Streams."
 
 repositories {
-    maven(url = "http://packages.confluent.io/maven/")
+    maven(url = "https://packages.confluent.io/maven/")
 }
 
 dependencies {
