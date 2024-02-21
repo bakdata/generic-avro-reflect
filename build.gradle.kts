@@ -62,5 +62,11 @@ subprojects {
     }
 }
 
+release {
+    git {
+        requireBranch.set("master")
+    }
+}
+
 val sonarqube by tasks
 sonarqube.enabled = false //FIXME requires Java 17
