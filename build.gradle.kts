@@ -1,9 +1,9 @@
 plugins {
     // release
     id("net.researchgate.release") version "3.0.2"
-    id("com.bakdata.sonar") version "1.1.14"
+    id("com.bakdata.sonar") version "1.1.17"
     id("com.bakdata.sonatype") version "1.1.14"
-    id("org.hildan.github.changelog") version "1.12.1"
+    id("org.hildan.github.changelog") version "2.2.0"
 }
 
 allprojects {
@@ -40,9 +40,10 @@ configure<org.hildan.github.changelog.plugin.GitHubChangelogExtension> {
 subprojects {
     apply(plugin = "java-library")
 
-    configure<JavaPluginConvention> {
-        sourceCompatibility = org.gradle.api.JavaVersion.VERSION_11
-        targetCompatibility = org.gradle.api.JavaVersion.VERSION_11
+    configure<JavaPluginExtension> {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(11)
+        }
     }
 
     dependencies {

@@ -1,7 +1,3 @@
-plugins {
-    `java-library`
-}
-
 description = "Generates an Avro schema from any Java object at runtime"
 
 dependencies {
