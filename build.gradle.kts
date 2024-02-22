@@ -1,9 +1,9 @@
 plugins {
     // release
-    id("net.researchgate.release") version "2.6.0"
-    id("com.bakdata.sonar") version "1.1.4"
-    id("com.bakdata.sonatype") version "1.1.4"
-    id("org.hildan.github.changelog") version "0.8.0"
+    id("net.researchgate.release") version "3.0.2"
+    id("com.bakdata.sonar") version "1.1.17"
+    id("com.bakdata.sonatype") version "1.1.14"
+    id("org.hildan.github.changelog") version "2.2.0"
 }
 
 allprojects {
@@ -40,9 +40,10 @@ configure<org.hildan.github.changelog.plugin.GitHubChangelogExtension> {
 subprojects {
     apply(plugin = "java-library")
 
-    configure<JavaPluginConvention> {
-        sourceCompatibility = org.gradle.api.JavaVersion.VERSION_11
-        targetCompatibility = org.gradle.api.JavaVersion.VERSION_11
+    configure<JavaPluginExtension> {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(11)
+        }
     }
 
     dependencies {
@@ -59,6 +60,12 @@ subprojects {
         "annotationProcessor"("org.projectlombok:lombok:1.18.6")
         "testCompileOnly"("org.projectlombok:lombok:1.18.6")
         "testAnnotationProcessor"("org.projectlombok:lombok:1.18.6")
+    }
+}
+
+release {
+    git {
+        requireBranch.set("master")
     }
 }
 
